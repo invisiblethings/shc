@@ -1,0 +1,797 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title><![CDATA[David Cramer's Blog]]></title><description><![CDATA[David Cramer's personal blog]]></description><link>https://cra.mr</link><generator>GatsbyJS</generator><lastBuildDate>Sat, 03 Oct 2020 00:35:44 GMT</lastBuildDate><item><title><![CDATA[An Honest Review of Gatsby]]></title><description><![CDATA[We decided to adopt Gatsby for Sentry’s customer-facing documentation - well, I should say that I decided. We were already using it…]]></description><link>https://cra.mr/an-honest-review-of-gatsby/</link><guid isPermaLink="false">https://cra.mr/an-honest-review-of-gatsby/</guid><pubDate>Fri, 02 Oct 2020 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;We decided to adopt Gatsby for &lt;a href=&quot;https://docs.sentry.io&quot;&gt;Sentry’s customer-facing documentation&lt;/a&gt; - well, I should say that &lt;em&gt;I&lt;/em&gt; decided. We were already using it successfully for a variety of static marketing content, and I knew it had a lot of hype, so after a brief proof-of-concept it seemed like a safe choice.&lt;/p&gt;
+&lt;p&gt;To help contextualize everything I’m about to say, it’s important to understand the scope of our usage. Sentry’s documentation is not as straightforward as you might think - in fact, there are over 3,000 pages as of writing. We have a large amount of templated content designed to render language-specific examples, as well as a variety of different types of documentation (user guides, help desk-y articles, code-rich technical docs). Originally we had extended Jekyll to support a lot of this, but Ruby isn’t widely used at Sentry (approximately 0% of the engineering team knows Ruby), and it had become a big mess of spaghetti code with slow build times.&lt;/p&gt;
+&lt;p&gt;I also want to note that while this blog post is primarily focusing on the flaws of Gatsby as a framework, I’m not here to tell you that it’s not good for your use case. That said, I was not able to discover many of these short comings easily when evaluating Gatsby, and many things you read on the internet don’t stem out of real-world usage. My hope here is that Gatsby continues to improve over time, and that, as a user, you can be more informed about if it’s the right choice for you.&lt;/p&gt;
+&lt;h2&gt;Adopting Gatsby&lt;/h2&gt;
+&lt;p&gt;So, enter Gatsby. It seemed fast, was built on React (we’re experts on that here, with our gigabyte-sized Sentry frontend app), and had a huge adoption (assumed future existence and stability). While we didn’t have the desire to use MDX, it also seemed like a positive outcome given we could more easily deal with some of the rich aspects of our docs site, without having to resort to 2010-era JavaScript. We assumed a bunch of the other features of Gatsby had value-add, but we didn’t have an immediate need. These were things like dynamic source data - thus the need for a GraphQL engine at all - as well as the large plug-in ecosystem.&lt;/p&gt;
+&lt;p&gt;We started by iteratively converting sections of the Jekyll site into Gatsby - running them side by side for a time. At one point we eventually bulk converted pages, and ripped off the band aid. At this point though it was becoming clear build times were a problem. You’d spend at least 5 minutes on image optimization alone, with no way to even disable that. Slowly but surely we were depleting the ozone later on re-optimizing images which had already been pre-optimized. Oh yeah, and we were crippling our iteration speed as well, since the build cache would invalidate under a variety of situations in early development.&lt;/p&gt;
+&lt;p&gt;Making this worse was how we deployed Gatsby. We started off leveraging what we had already done: deploying Jekyll with Docker onto our own infrastructure - effectively just proxied via a CDN. We continued that for a period of time, but deploy times were far too long - upwards of 30-40 minutes for everything to build. Eventually we moved over to &lt;a href=&quot;https://vercel.com&quot;&gt;Vercel&lt;/a&gt; which dropped it down closer to 10 minutes, but ultimately it can’t fix what it doesn’t control.&lt;/p&gt;
+&lt;p&gt;The build and deploy times were the first of many woes, and they represent what would become a continued frustration: a problem without a clear solution.&lt;/p&gt;
+&lt;h2&gt;Enter MDX&lt;/h2&gt;
+&lt;p&gt;Rewind time a little bit - this actually wasn’t our first project converting documentation to Gatsby. The proof-of-concept I mentioned earlier was actually our &lt;a href=&quot;https://develop.sentry.dev&quot;&gt;developer documentation&lt;/a&gt;, which I had migrated out of Notion to make public. While doing that we had gotten our hands dirty with some initial MDX usability and extensions - like our code samples which support toggling between different languages. This was one of the many things we needed to solve for, but MDX made it look like it’d be seemingly easy. No more jQuery DOM manipulation, just clean, encapsulated React components. Or so we thought.&lt;/p&gt;
+&lt;p&gt;Almost immediately we hit rough spots with MDX. We were coming from Jekyll - which was Liquid-rendered (a template engine) markdown - to MDX - a strange offspring of Markdown and JSX, attempting all of the benefits of both, but missing by a fairly large margin. Let’s illustrate the crux of the issue with what has got to be one of the most common needs in a documentation system: an alert (or callout) component:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;markdown&quot;&gt;&lt;pre class=&quot;language-markdown&quot;&gt;&lt;code class=&quot;language-markdown&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;&lt;/span&gt;Alert&lt;/span&gt; &lt;span class=&quot;token attr-name&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;token attr-value&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;info&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;You should know something important about this!&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;/&lt;/span&gt;Alert&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;At face value this looks great. &lt;code class=&quot;language-text&quot;&gt;Alert&lt;/code&gt; is just a React component, and JSX is close enough to HTML that non-technical folks are able to pick it up fairly easily. Now the problem comes into play when you actually want to do something in the real world. Here’s an example from our API docs:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;markdown&quot;&gt;&lt;pre class=&quot;language-markdown&quot;&gt;&lt;code class=&quot;language-markdown&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;&lt;/span&gt;Alert&lt;/span&gt; &lt;span class=&quot;token attr-name&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;token attr-value&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;warning&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt; &lt;span class=&quot;token attr-name&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;token attr-value&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;Note&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;
+    &lt;span class=&quot;token bold&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;PUT/DELETE&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;**&lt;/span&gt;&lt;/span&gt; methods only apply to updating/deleting issues.
+Events in sentry are immutable and can only be deleted by deleting the whole issue.
+&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;/&lt;/span&gt;Alert&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;How would you expect this to render? Both as an engineer and a non-engineer, I would expect - given this is markdown - that the “PUT/DELETE” text would be bold. It’s not. Because the MDX interpreter decides that once you enter a component block, it’s no longer markdown. So instead, we’re forced with this monstrosity &lt;em&gt;everywhere&lt;/em&gt; in our documentation:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;markdown&quot;&gt;&lt;pre class=&quot;language-markdown&quot;&gt;&lt;code class=&quot;language-markdown&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;&lt;/span&gt;Alert&lt;/span&gt; &lt;span class=&quot;token attr-name&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;token attr-value&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;warning&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt; &lt;span class=&quot;token attr-name&quot;&gt;title&lt;/span&gt;&lt;span class=&quot;token attr-value&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;Note&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;&lt;/span&gt;markdown&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;
+
+&lt;span class=&quot;token bold&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;token content&quot;&gt;PUT/DELETE&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;**&lt;/span&gt;&lt;/span&gt; methods only apply to updating/deleting issues.
+Events in sentry are immutable and can only be deleted by deleting the whole issue.
+
+&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;/&lt;/span&gt;markdown&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;/&lt;/span&gt;Alert&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;There’s two things you should note here: 1) we have to use this &lt;code class=&quot;language-text&quot;&gt;&amp;lt;markdown&amp;gt;&lt;/code&gt; tag, 2) we have to put empty new-lines to ensure paragraph tags render.&lt;/p&gt;
+&lt;p&gt;“But David”, you might say, “why don’t you just tell the &lt;code class=&quot;language-text&quot;&gt;Alert&lt;/code&gt; component to render the text as markdown?“. If only you could, or at least, if only I could have possibly found a way to achieve that as a user with minimal Gatsby or MDX internals knowledge.&lt;/p&gt;
+&lt;p&gt;To Gatsby, or at least to the MDX team’s credit, they recognize some of these problems and &lt;a href=&quot;https://github.com/mdx-js/mdx/issues/1041&quot;&gt;there is work underway&lt;/a&gt; on a 2.0 of the MDX dialect. While I’m confident they will improve things, I’m not confident MDX can ultimately succeed. It’s likely going to tradeoff one problem for another due to what it’s trying to achieve in the first place. It may get to a good place, but frankly, we need to step back and look at what we’re trying to solve, instead of creating a solution to a problem we don’t have. I don’t need JSX syntax in my markdown, I need a way to include JSX components. That might sound similar, but its quite a different thing.&lt;/p&gt;
+&lt;p&gt;As an example, there’s no reason I couldn’t simply use markdown syntax, and provide a way to achieve something akin to:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;markdown&quot;&gt;&lt;pre class=&quot;language-markdown&quot;&gt;&lt;code class=&quot;language-markdown&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token tag&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;&amp;lt;&lt;/span&gt;a-valid-html-tag-because-markdown-allows-that&lt;/span&gt; &lt;span class=&quot;token attr-name&quot;&gt;a-valid-property&lt;/span&gt;&lt;span class=&quot;token attr-value&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;a-value&lt;span class=&quot;token punctuation&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This wouldn’t force us to work around quirks in a new language (or interpreter even), and could be solved in a much more sustainable way. There are other alternatives as well. A generic way to render extensions in markdown could simply call into a React component, and avoid even trying to hijack HTML in the first place. While I don’t know what this might look like in Markdown, in &lt;a href=&quot;https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html&quot;&gt;Sphinx’s use of reStructuredText&lt;/a&gt; this was solved early on with Directives:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;text&quot;&gt;&lt;pre class=&quot;language-text&quot;&gt;&lt;code class=&quot;language-text&quot;&gt;.. my-directive:: some data
+   :property-name: property-value&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;I will hold out for MDX 2.0 and hope that finds a nice minimal-compromise place, but if not, we’ll be looking for a way to extend native markdown.&lt;/p&gt;
+&lt;h2&gt;A Broken DOM&lt;/h2&gt;
+&lt;p&gt;While we were able to work around the kinks of MDX, there’s been some things not yet solved. One of those is the layer which Gatsby uses to apply diffs to the DOM. I’m going to caveat this section with &lt;em&gt;I don’t know what the technical implementation is&lt;/em&gt;, but I can make some assumptions given what I know of the domain. The system itself is intended to apply deltas to the DOM. This is naively also how React works, and I imagine under the hood it’s relying on React at least for part of it. We’ve had issues with this identified in two places already:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;progressive image loading&lt;/li&gt;
+&lt;li&gt;dynamic JSX components&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;While they might not be linked to the same issue, they smell like they are, so we’re going to roll with it. The problem exhibits itself when you have a bunch of DOM that to a naive robot might look the same:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;text&quot;&gt;&lt;pre class=&quot;language-text&quot;&gt;&lt;code class=&quot;language-text&quot;&gt;&amp;lt;div&amp;gt;foo&amp;lt;/div&amp;gt;
+&amp;lt;div&amp;gt;bar&amp;lt;/div&amp;gt;
+&amp;lt;div&amp;gt;baz&amp;lt;/div&amp;gt;
+&amp;lt;div&amp;gt;foobizbar&amp;lt;/div&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;In React it uses the graph to identify which node is which - effectively creating a unique entity ID based on its location. In cases where that’s difficult, React will warn you to explicitly bind a &lt;code class=&quot;language-text&quot;&gt;key&lt;/code&gt; attribute on each element to ensure it can more accurately deal with updates. While I would assume Gatsby is at least partially using React’s DOM engine, what we see in production effectively takes the above example, and replaces some of the content with other subsets of content - meaning it’s unable to accurately identify which nodes need updated.&lt;/p&gt;
+&lt;p&gt;We’ve seen this where a progressive image is replaced with an entirely different image that’s present near it on the page. We’ve also seen this happen for a dynamically loaded section of content (our language-selector include tags). While we’ve yet to identify a fix for the image tags, our other issue was resolved by literally changing a &lt;code class=&quot;language-text&quot;&gt;div&lt;/code&gt; tag to a different tag, one which is less commonly used (in our case, &lt;code class=&quot;language-text&quot;&gt;section&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;All of the cases happen after Gatsby’s initial static render and exist only when applying some form of delta.&lt;/p&gt;
+&lt;h2&gt;Let’s Talk GraphQL&lt;/h2&gt;
+&lt;p&gt;It’s a static website generator. It literally does not need GraphQL all over the place. While there are few instances in the real world where that is valuable, it shouldn’t require a GraphQL API to read objects that are already in memory.&lt;/p&gt;
+&lt;p&gt;I don’t want to spend the energy to hammer this in, but take a look at Jared Palmer’s &lt;a href=&quot;https://jaredpalmer.com/gatsby-vs-nextjs&quot;&gt;Gatsby vs. Next.js&lt;/a&gt; as it echoes my thoughts.&lt;/p&gt;
+&lt;p&gt;So, let’s actually not talk about GraphQL, but all its done is create complexity for us.&lt;/p&gt;
+&lt;h2&gt;Minor Gripes&lt;/h2&gt;
+&lt;p&gt;There’s a number of other things we’ve found fairly frustrating at this point, but this post is already getting long, so I’m choosing to summarize them.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Transform extensions are disconnected from source extensions. In the most naive cases this is fine, but in the real world I need to transform data &lt;em&gt;entirely differently&lt;/em&gt; based on its source. Data is more than a mimetype. An example of this for us is we export some markdown rendered content as JSON. That content needs to render under entirely different rules than other markdown files. Well, it can’t (at least not easily), so we’re left with praying no one fucks up.&lt;/li&gt;
+&lt;li&gt;Setting aside that we even need GraphQL, trying to get objects modeled into a format that works in a semi-correct way in Gatsby is terrifying. For example, &lt;code class=&quot;language-text&quot;&gt;Page&lt;/code&gt; objects generally represent your URLs, yet the docs, code samples, tutorials, etc, suggest you create a disconnected entity to actually render the content with the page. For example, instead of binding page-relevant context to page.. as context (a native concept), you’re pushed to doing GraphQL queries to pull in front-matter. Stop. Using. GraphQL.&lt;/li&gt;
+&lt;li&gt;Given the disconnect between data and parsing, it’s very difficult to achieve templated content without again resorting to GraphQL. Due to the flaws with MDX we wanted to be able to inject something more akin to a traditional template variable (for our SDK package versions). Ideally this would have been able to read from a simple pre-existing data source, but because AST parsing happens wildly outside of the scope of the infinite list of things Gatsby does in its build process, this becomes needlessly complicated.&lt;/li&gt;
+&lt;li&gt;The docs are lacking in a variety of key areas. You’ll begin stumbling as soon as you get into any of the configuration APIs (e.g. &lt;code class=&quot;language-text&quot;&gt;onCreateNode&lt;/code&gt;) where there is missing or very-incomplete documentation.&lt;/li&gt;
+&lt;li&gt;Why does a static site use &lt;em&gt;so much bandwidth&lt;/em&gt;. I’m sure it’s something we’ve done wrong, but the large amounts of data pulled back from &lt;code class=&quot;language-text&quot;&gt;page-data.json&lt;/code&gt; aren’t calming. Likely also connected to GraphQL. Blame it all on GraphQL.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There are certainly more, but consistently I’ve been asked about why I’m frustrated with Gatsby, so I wanted to share what was top of mind.&lt;/p&gt;
+&lt;h2&gt;In Closing&lt;/h2&gt;
+&lt;p&gt;While this post may paint Gatsby in a negative light, I would still say its a framework worth considering. There’s often not going to be a one-size-fits-all, and Gatsby has a lot of great qualities. This site for example is built on Gatsby, and it’s certainly more enjoyable to build with than Jeykll was. That said, I don’t touch GraphQL or MDX here, have effectively no images, and clearly don’t spend a lot of time working on it.&lt;/p&gt;
+&lt;p&gt;With that in mind, there are two pieces of advice I would give to the Gatsby team:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;It should not be slow - it’s just HTML. If this doesn’t change I don’t see Gatsby succeeding.&lt;/li&gt;
+&lt;li&gt;Please for the love of anything make a functional markup language that doesn’t require 10 years of domain experience to make functional.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;For those of you who you’re interested, you can browse the mess that has become our lives over on GitHub:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;docs.sentry.io - &lt;a href=&quot;https://github.com/getsentry/sentry-docs&quot;&gt;https://github.com/getsentry/sentry-docs&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;develop.sentry.dev - &lt;a href=&quot;https://github.com/getsentry/develop&quot;&gt;https://github.com/getsentry/develop&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I’m sure there’s things we can do better, so if something seems wildly off given what I’m saying, maybe you can help teach us.&lt;/p&gt;</content:encoded></item><item><title><![CDATA[Instrumenting GatsbyJS with Sentry]]></title><description><![CDATA[I recently kicked off an initiative to port our developer documentation into a public-facing website. Previously this was split between…]]></description><link>https://cra.mr/instrumenting-gatsbyjs-with-sentry/</link><guid isPermaLink="false">https://cra.mr/instrumenting-gatsbyjs-with-sentry/</guid><pubDate>Thu, 11 Jun 2020 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;I recently kicked off an initiative to port our developer documentation into a &lt;a href=&quot;https://develop.sentry.dev&quot;&gt;public-facing website&lt;/a&gt;. Previously this was split between Sentry’s official docs (rarely updated), and our internal knowledge base. Making this public was a good way to ensure it was kept up to date, but also an important step in ensuring Sentry’s open source origins stay true. As part of this, we also wanted to give &lt;a href=&quot;https://www.gatsbyjs.org/&quot;&gt;Gatsby&lt;/a&gt; a spin, as working on our Jekyll-based documentation has had a pretty slow iteration speed due to the way it builds pages.&lt;/p&gt;
+&lt;p&gt;I’m not going to go into the details of the Gatsby build itself, but the project is &lt;a href=&quot;https://github.com/getsentry/develop&quot;&gt;open source on GitHub&lt;/a&gt; so take a look if you’re interested. Instead I’m going to talk a bit about developing the &lt;code class=&quot;language-text&quot;&gt;@sentry/gatsby&lt;/code&gt; integration, what worked out of the box, and where we still need to improve our new products at Sentry. To follow along take a look at the &lt;a href=&quot;https://github.com/getsentry/sentry-javascript/tree/master/packages/gatsby&quot;&gt;gatsby package in sentry-javascript&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/ea10c762c1747ca8db9bd3d7ad719547/5e703/gatsby-trace.png&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 75.67567567567568%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAPCAYAAADkmO9VAAAACXBIWXMAABYlAAAWJQFJUiTwAAACh0lEQVQ4y4VUWWtTURDOL9cHHyo+iA/igyJYRKq1K1IQF1orxbSiVSvpkrRpk9x9zd3XfM5MmjStiAMfc87lnG9mvplzG2EQwTIcOLYHx3LF2+RdxxfPe8t0YOg2oihBWVYoinIGFaIwhuv6yLIcjTwr5GASp0iSjJAK0pn1BHleoCLCcga85+9ZmqGkAI0iLxF4IUI/QEzZVpeHGKN6hJrAaz7HwbMkF6RxJkHZT74VRNyoKrpc5KjzBHWR4eRHF/vbLbS+dtA5uED3cABLdZFElGWYosjGWdZVjYog/jKBoiDCLMswGo0wseP9M3xY3MH2+h52Nr5h7/1PtPbaOP3dQ7fVh96zELih3JlgYnEcoxEMqVwqlevPSdSUtBrShSQalzI41dH5dS7ZnhEhe8HvC5wfDXBxoqDXVgX9roIGM1umDV3TYRomhsMAFFcicvQ+HTw90snr6J3QpbaGfkeT9RRMRt/iIB0Tuo5HhAY81wNrOmt17CJXWrQq8T+r6/qKUKMMPc8XQhaXxyAlCfIoRGW00TvsUoMU5Gku8pQ0fzfBjRFCzszQDZimBVXVoCoaBn1F9jy4bB+XvmBjfhOBH0km0/GSbvN67KeEOhHatiNeI1JN1WWu+CCpia3VXSw9eivdd01/OtRj0n8RWjYsAhObhgXHcWWY2TZXmnh866XgoHksjZt9BNcIXSnZhEFd5pIVRSVdXfj+kLTMhXBrtYmnd15jfm4F7xY+o9dR5ZVUNzL9S0NloAq4bO48Py/JcLmJJ7dfYf7uCp7fW8PW2i4cw7/U8OrVXCO0iJBLH5MqGBCiMBLCT+u7eDa3jIUHb/Di/joWH27g8HtHniRPBf8gGH8Ay0Vqx/0tbEAAAAAASUVORK5CYII=&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;A Gatsby Trace in Sentry&quot;
+        title=&quot;A Gatsby Trace in Sentry&quot;
+        src=&quot;/static/ea10c762c1747ca8db9bd3d7ad719547/fcda8/gatsby-trace.png&quot;
+        srcset=&quot;/static/ea10c762c1747ca8db9bd3d7ad719547/12f09/gatsby-trace.png 148w,
+/static/ea10c762c1747ca8db9bd3d7ad719547/e4a3f/gatsby-trace.png 295w,
+/static/ea10c762c1747ca8db9bd3d7ad719547/fcda8/gatsby-trace.png 590w,
+/static/ea10c762c1747ca8db9bd3d7ad719547/efc66/gatsby-trace.png 885w,
+/static/ea10c762c1747ca8db9bd3d7ad719547/c83ae/gatsby-trace.png 1180w,
+/static/ea10c762c1747ca8db9bd3d7ad719547/5e703/gatsby-trace.png 1942w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;A Gatsby Trace in Sentry&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;When I started the integration, I had a rough idea on how to approach it due to an &lt;a href=&quot;https://www.gatsbyjs.org/packages/gatsby-plugin-sentry/&quot;&gt;existing plugin by octalmage&lt;/a&gt;. There were a couple things I wanted to accomplish though which werent present here:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;plugin-based approach (the same as the existing plugin)&lt;/li&gt;
+&lt;li&gt;frictionless setup - generally config can be inferred from the environment&lt;/li&gt;
+&lt;li&gt;support for Sentry’s new performance monitoring&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I already had the approach for the plugin. It’s fairly straight forward, and just requires a &lt;code class=&quot;language-text&quot;&gt;gatsby-browser.js&lt;/code&gt; to be defined where you’re passed plugin options and can inject the SDK:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;javascript&quot;&gt;&lt;pre class=&quot;language-javascript&quot;&gt;&lt;code class=&quot;language-javascript&quot;&gt;exports&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function-variable function&quot;&gt;onClientEntry&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token parameter&quot;&gt;_&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; pluginParams&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  require&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;ensure&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;@sentry/react&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token parameter&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;const&lt;/span&gt; Sentry &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;@sentry/browser&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    Sentry&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;init&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      environment&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;NODE_ENV&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;development&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      release&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;SENTRY_RELEASE&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      dsn&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;SENTRY_DSN&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token operator&quot;&gt;...&lt;/span&gt;pluginParams&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    window&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;Sentry &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; Sentry&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;There’s a couple of tricky bits in here that won’t actually do what you’d expect:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Passing &lt;code class=&quot;language-text&quot;&gt;integrations&lt;/code&gt; is actually operating outside of a browser context, meaning we cant initialize &lt;code class=&quot;language-text&quot;&gt;@sentry/apm&lt;/code&gt; from &lt;code class=&quot;language-text&quot;&gt;pluginParams&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;While &lt;code class=&quot;language-text&quot;&gt;NODE_ENV&lt;/code&gt; is available, Gatsby wont expose other environment variables to the browser unless prefixed with &lt;code class=&quot;language-text&quot;&gt;GATSBY_&lt;/code&gt;. This means our &lt;code class=&quot;language-text&quot;&gt;SENTRY_&lt;/code&gt; vars won’t exist.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The first one was easy to work around. We don’t actually need a ton of integrations, so we just created detection for tracing configuration:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;javascript&quot;&gt;&lt;pre class=&quot;language-javascript&quot;&gt;&lt;code class=&quot;language-javascript&quot;&gt;exports&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function-variable function&quot;&gt;onClientEntry&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token parameter&quot;&gt;_&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; pluginParams&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  require&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;ensure&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;@sentry/react&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&apos;@sentry/apm&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token parameter&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;// ...&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;const&lt;/span&gt; TracingIntegration &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&apos;@sentry/apm&apos;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;Integrations&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;Tracing&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;const&lt;/span&gt; tracesSampleRate &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; pluginParams&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;tracesSampleRate &lt;span class=&quot;token operator&quot;&gt;!==&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;undefined&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;?&lt;/span&gt; pluginParams&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;tracesSampleRate &lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;const&lt;/span&gt; integrations &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;pluginParams&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;integrations &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;tracesSampleRate&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      integrations&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;push&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token keyword&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;TracingIntegration&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+    Sentry&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;init&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;token comment&quot;&gt;// ...&lt;/span&gt;
+      &lt;span class=&quot;token operator&quot;&gt;...&lt;/span&gt;pluginParams&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      tracesSampleRate&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      integrations&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;// ...&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;This will only inject &lt;code class=&quot;language-text&quot;&gt;@sentry/apm&lt;/code&gt; when you’ve defined &lt;code class=&quot;language-text&quot;&gt;tracesSampleRate &amp;gt; 0&lt;/code&gt; in your configuration. Great, we’ve solved our first problem!&lt;/p&gt;
+&lt;p&gt;The next issue we had was more complex. How do we automatically detect the DSN and release values from the environment? The simplest way I found to do this was to use the &lt;code class=&quot;language-text&quot;&gt;onCreateWebpackConfig&lt;/code&gt; hook via &lt;code class=&quot;language-text&quot;&gt;gatsby-node.js&lt;/code&gt;. This allows us to Webpack’s &lt;a href=&quot;https://webpack.js.org/plugins/define-plugin/&quot;&gt;&lt;code class=&quot;language-text&quot;&gt;DefinePlugin&lt;/code&gt;&lt;/a&gt;. The simplest way to understand this plugin is it does a literal find-and-replace on build (&lt;em&gt;not&lt;/em&gt; to be confused with templating). Using this we’re able to detect the environment variables at build time, and inject our &lt;code class=&quot;language-text&quot;&gt;__SENTRY_DSN__&lt;/code&gt; style placeholders:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;javascript&quot;&gt;&lt;pre class=&quot;language-javascript&quot;&gt;&lt;code class=&quot;language-javascript&quot;&gt;exports&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function-variable function&quot;&gt;onCreateWebpackConfig&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token parameter&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt; plugins&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; actions &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&gt;&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  actions&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;setWebpackConfig&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    plugins&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+      plugins&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;define&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        __SENTRY_RELEASE__&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token constant&quot;&gt;JSON&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;stringify&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;SENTRY_RELEASE&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        __SENTRY_DSN__&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token constant&quot;&gt;JSON&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;stringify&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;SENTRY_DSN&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Once I got to this point, I decided to take the environment configuration one step further, and added automatic detection for some of the popular cloud services, including GitHub Actions, Netlify, and Vercel:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;javascript&quot;&gt;&lt;pre class=&quot;language-javascript&quot;&gt;&lt;code class=&quot;language-javascript&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;token comment&quot;&gt;// ...&lt;/span&gt;
+  &lt;span class=&quot;token comment&quot;&gt;// There&apos;s more to this list than whats visible here, but you get the idea.&lt;/span&gt;
+  __SENTRY_RELEASE__&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token constant&quot;&gt;JSON&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;stringify&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;// GitHub Actions - https://help.github.com/en/actions/configuring-and-managing-workflows/using-environment-variables#default-environment-variables&lt;/span&gt;
+    process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;GITHUB_SHA&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt;
+      &lt;span class=&quot;token comment&quot;&gt;// Netlify - https://docs.netlify.com/configure-builds/environment-variables/#build-metadata&lt;/span&gt;
+      process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;COMMIT_REF&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt;
+      &lt;span class=&quot;token comment&quot;&gt;// Vercel - https://vercel.com/docs/v2/build-step#system-environment-variables&lt;/span&gt;
+      process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;VERCEL_GITHUB_COMMIT_SHA&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt;
+      &lt;span class=&quot;token comment&quot;&gt;// Zeit (now known as Vercel)&lt;/span&gt;
+      process&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;env&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token constant&quot;&gt;ZEIT_GITHUB_COMMIT_SHA&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;||&lt;/span&gt;
+      &lt;span class=&quot;token string&quot;&gt;&quot;&quot;&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;That’s it! The &lt;code class=&quot;language-text&quot;&gt;@sentry/gatsby&lt;/code&gt; integration will be available as part of the next release of &lt;code class=&quot;language-text&quot;&gt;sentry-javascript&lt;/code&gt;. Configuration is as easy as dropping the plugin in your &lt;code class=&quot;language-text&quot;&gt;gatsby-config.js&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&quot;gatsby-highlight&quot; data-language=&quot;javascript&quot;&gt;&lt;pre class=&quot;language-javascript&quot;&gt;&lt;code class=&quot;language-javascript&quot;&gt;plugins&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    resolve&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;@sentry/gatsby&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    options&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      tracesSampleRate&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;token comment&quot;&gt;// ...&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;In general I was pretty happy with how well our tracing is working out of the box here, but its not without its warts. We’ve got some improvements to make around how navigation events are captured (they’re a fairly empty trace right now), and we need to provide some hooks so you can indicate the status of the transaction (such as telling Sentry about your 404 handler).&lt;/p&gt;
+&lt;p&gt;The one major nit that I have is and I’d love to see Gatsby support better is some degree of integration tests. Right now we’re shipping with next to nothing (we’re only testing exports), but having a way to know that our usage of the APIs works in different versions of Gatsby is fairly critical. We’ll likely explore just bundling a full Gatsby site in the future so at the very least QA is easy.&lt;/p&gt;</content:encoded></item><item><title><![CDATA[Optimizing for WFH]]></title><description><![CDATA[I’m a gamer, specifically a PC gamer. That means I’ve got a pretty beefy computer at home, and it also means I default to having a nearly…]]></description><link>https://cra.mr/optimizing-for-wfh/</link><guid isPermaLink="false">https://cra.mr/optimizing-for-wfh/</guid><pubDate>Wed, 03 Jun 2020 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;I’m a gamer, specifically a PC gamer. That means I’ve got a pretty beefy computer at home, and it also means I default to having a nearly-office grade workstation. That’s been a great situation to be in, as our offices are going to be closed for the better part of this year. The only downside? Swapping cables on the daily. This is a quick journey on improving that situation, what my home setup looks like now, and all of the warts with technology.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/c003717b9bb45bde778d93950a75c07c/8b3bd/desk.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 53.37837837837838%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAALABQDASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAQCA//EABYBAQEBAAAAAAAAAAAAAAAAAAIAAf/aAAwDAQACEAMQAAABmdch0p2X/8QAGhAAAgIDAAAAAAAAAAAAAAAAAQIAAxIyM//aAAgBAQABBQLaGtgqNQVr5lAZiBP/xAAWEQEBAQAAAAAAAAAAAAAAAAAAEgH/2gAIAQMBAT8BnUP/xAAWEQEBAQAAAAAAAAAAAAAAAAAAEgH/2gAIAQIBAT8BvFv/xAAcEAEAAgEFAAAAAAAAAAAAAAABABECEBIhIoH/2gAIAQEABj8C6Wy8hIbk9jpxP//EABsQAQACAgMAAAAAAAAAAAAAAAEAIRExUWGR/9oACAEBAAE/IUvYGNgnLMxF6QDRubIfWFEYJ//aAAwDAQACAAMAAAAQl9//xAAYEQEBAAMAAAAAAAAAAAAAAAABABEhUf/aAAgBAwEBPxBbY2fb/8QAFxEAAwEAAAAAAAAAAAAAAAAAAAERUf/aAAgBAgEBPxBIUhOH/8QAHBABAAMAAgMAAAAAAAAAAAAAAQARIUFRMbHh/9oACAEBAAE/EFux1CkTarniFrgYBq0e43EQL1oM4imi1SmPlgwMOvtCqvRP/9k=&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;The end result&quot;
+        title=&quot;The end result&quot;
+        src=&quot;/static/c003717b9bb45bde778d93950a75c07c/1c72d/desk.jpg&quot;
+        srcset=&quot;/static/c003717b9bb45bde778d93950a75c07c/a80bd/desk.jpg 148w,
+/static/c003717b9bb45bde778d93950a75c07c/1c91a/desk.jpg 295w,
+/static/c003717b9bb45bde778d93950a75c07c/1c72d/desk.jpg 590w,
+/static/c003717b9bb45bde778d93950a75c07c/a8a14/desk.jpg 885w,
+/static/c003717b9bb45bde778d93950a75c07c/fbd2c/desk.jpg 1180w,
+/static/c003717b9bb45bde778d93950a75c07c/8b3bd/desk.jpg 3826w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;The end result&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;First things first, let’s go over what our “infrastructure” looks like. That’s fairly important as it dictates the kinds of choices we can make.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Standard 13” MacBook Pro&lt;/li&gt;
+&lt;li&gt;Windows 10 Desktop (&lt;a href=&quot;https://pcpartpicker.com/b/YNr6Mp&quot;&gt;specs&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;34” UWD (Alienware AW3418DW)&lt;/li&gt;
+&lt;li&gt;60” x 30” standard desk&lt;/li&gt;
+&lt;li&gt;External Mic, Webcam, Headphones, Speakers, and quick access USB Hub&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A few years back I had built a two-display KVM setup to achieve quick swapping between systems, so my goal this time around was something similar, but with only a single display. I busted out my old KVM (which is DVI!) only to realize that there was no chance it would work with the resolutions I needed. I then spent a few hours researching alternatives online, only to find that every KVM in the world has awful reviews. So ditching that plan, I decided instead to focus on the minimal amount of effort to swap connections, but while retaining all peripherals.&lt;/p&gt;
+&lt;p&gt;The first thing I discovered was the concept of a display-less KVM. It’s probably easier to just call it a USB switch, as it acts like a USB hub and has a button to switch the output between multiple devices. The &lt;a href=&quot;https://www.amazon.com/gp/product/B07DKD7JHG/&quot;&gt;one I picked up&lt;/a&gt; has four inputs, and two outputs, with a single button to toggle between them. At this point, we now have a plan. Swapping systems would require hitting the USB switch, and then swapping the monitor output between HDMI/DisplayPort. Not as easy as a KVM, but no need to cable swap non-stop.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/872fd52ae008668e18ef7b81cb7d1576/10fd8/usb-switch.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 108.78378378378379%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAWABQDASIAAhEBAxEB/8QAGAABAQEBAQAAAAAAAAAAAAAAAAQDBQL/xAAXAQADAQAAAAAAAAAAAAAAAAAAAQID/9oADAMBAAIQAxAAAAH3LPMn3XPZ3XgTWwD/xAAbEAADAQEAAwAAAAAAAAAAAAABAgMABBETIf/aAAgBAQABBQK/RWWHZVj7KboJw+4K3gzV0WSq2//EABcRAQADAAAAAAAAAAAAAAAAABABETH/2gAIAQMBAT8BnSj/xAAXEQEAAwAAAAAAAAAAAAAAAAAQAREx/9oACAECAQE/AYws/8QAHxAAAQIGAwAAAAAAAAAAAAAAAAEhAhARIkFREjKR/9oACAEBAAY/AktRylp2gOK1bcs+Do+zNZf/xAAeEAACAgICAwAAAAAAAAAAAAAAAREhMWEQcUGRof/aAAgBAQABPyGwL9hRpnQ1PN0IRQamFbbImvodHr8pIvg3XH//2gAMAwEAAgADAAAAEJPQgP/EABkRAAMAAwAAAAAAAAAAAAAAAAABERAhMf/aAAgBAwEBPxAElOEacx//xAAZEQADAAMAAAAAAAAAAAAAAAAAAREQITH/2gAIAQIBAT8QgNu9K2rj/8QAHhABAQACAgIDAAAAAAAAAAAAAREAMSFBcZFRobH/2gAIAQEAAT8QDRdRXp4cMwKBXifeTXnmmBAVlwprXrLO2AA24Xsvn9hyb7gdgxfeQQhvNK4kYaz/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;USB switch&quot;
+        title=&quot;USB switch&quot;
+        src=&quot;/static/872fd52ae008668e18ef7b81cb7d1576/1c72d/usb-switch.jpg&quot;
+        srcset=&quot;/static/872fd52ae008668e18ef7b81cb7d1576/a80bd/usb-switch.jpg 148w,
+/static/872fd52ae008668e18ef7b81cb7d1576/1c91a/usb-switch.jpg 295w,
+/static/872fd52ae008668e18ef7b81cb7d1576/1c72d/usb-switch.jpg 590w,
+/static/872fd52ae008668e18ef7b81cb7d1576/a8a14/usb-switch.jpg 885w,
+/static/872fd52ae008668e18ef7b81cb7d1576/10fd8/usb-switch.jpg 942w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;USB switch&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;Now of course, it wasn’t as easy as just wiring up the USB switch, as there were a number of other things I wanted to address to optimize the desk. First, I mentioned all of the peripherals. The best way to make use of your display is to wire them all directly to the monitor. The problem in my case is the Alienware only has 2 rear USB ports (where cables can be safely hidden), and the other two are mounted on the bottom of the monitor. They work just fine, but aesthetically it’s not very attractive. To work around this, I added a four-port USB hub dangling on the monitor arm. I use two of the monitor ports for the keyboard and mouse (if nothing else to balance power draw), and then I run the monitor’s USB output to the hub. The hub then has an extension which routes to the USB switch.&lt;/p&gt;
+&lt;p&gt;Next up, I wanted to have an easy way to switch between headphones and my speakers. I generally use headphones for meetings, but they get uncomfortable after a while so it’s nice to be able to switch to speakers for music, games, or whatever else is going on. I had an &lt;a href=&quot;https://www.amazon.com/gp/product/B073GWCRP3/&quot;&gt;audio switch box&lt;/a&gt; available from the last time I set something like this up, so I opted for that. It has both the headphones and speakers as outputs, and the input comes from our monitor - ensuring whatever machine is active on the display is also active on audio out. The only concern I had here was the headphones need a DAC to have any reasonable power at all, so I opted to route the DAC from the input so it powers &lt;em&gt;both&lt;/em&gt; the speakers and headphones, rather than just the headphones. I may change this in the future.&lt;/p&gt;
+&lt;figure class=&quot;gatsbyRemarkImagesGrid&quot;&gt;&lt;div class=&quot;gatsbyRemarkImagesGrid-grid&quot; style=&quot;
+            grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));
+          &quot;&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/6613667dc313d86ba304d354040ad89e/72e01/dac.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 60.810810810810814%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAMABQDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAIEA//EABUBAQEAAAAAAAAAAAAAAAAAAAAC/9oADAMBAAIQAxAAAAGXK+aLQQP/xAAbEAACAwADAAAAAAAAAAAAAAABAgADEhETIf/aAAgBAQABBQJ7X32tkPdwyKYa1h9P/8QAFhEBAQEAAAAAAAAAAAAAAAAAAQIQ/9oACAEDAQE/Aahc/8QAFhEBAQEAAAAAAAAAAAAAAAAAAQIQ/9oACAECAQE/ASzP/8QAHxAAAgECBwAAAAAAAAAAAAAAAAEhEBIiMTNBUXGR/9oACAEBAAY/AniSXRqzxab+koyp/8QAGxAAAgMAAwAAAAAAAAAAAAAAAAERITEQUYH/2gAIAQEAAT8hhnQaHakR6zbwPZw4tJLZ/9oADAMBAAIAAwAAABBY7//EABcRAAMBAAAAAAAAAAAAAAAAAAABETH/2gAIAQMBAT8QwHCH/8QAFxEAAwEAAAAAAAAAAAAAAAAAAAERMf/aAAgBAgEBPxBTUU//xAAbEAEBAQEBAAMAAAAAAAAAAAABEQAhQVFxof/aAAgBAQABPxAxwysNbiwgYEvpcJUH0D8mHFXjnLq4A+l10hGE+N//2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;DAC&quot;
+        title=&quot;DAC&quot;
+        src=&quot;/static/6613667dc313d86ba304d354040ad89e/1c72d/dac.jpg&quot;
+        srcset=&quot;/static/6613667dc313d86ba304d354040ad89e/a80bd/dac.jpg 148w,
+/static/6613667dc313d86ba304d354040ad89e/1c91a/dac.jpg 295w,
+/static/6613667dc313d86ba304d354040ad89e/1c72d/dac.jpg 590w,
+/static/6613667dc313d86ba304d354040ad89e/a8a14/dac.jpg 885w,
+/static/6613667dc313d86ba304d354040ad89e/72e01/dac.jpg 1024w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;DAC&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/2071fcc15d8b59f8c38944cba55b7974/72e01/audio-switch.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 60.810810810810814%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAMABQDASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAIBBP/EABUBAQEAAAAAAAAAAAAAAAAAAAIB/9oADAMBAAIQAxAAAAGnHYWKRf/EABkQAAIDAQAAAAAAAAAAAAAAAAABAgMREv/aAAgBAQABBQJ2CnpZ322ReNn/xAAVEQEBAAAAAAAAAAAAAAAAAAAAEf/aAAgBAwEBPwFH/8QAFREBAQAAAAAAAAAAAAAAAAAAABH/2gAIAQIBAT8Bqv/EAB0QAAICAQUAAAAAAAAAAAAAAAABAjEREBIhMpH/2gAIAQEABj8CzlI4nAujbaR1j5p//8QAGhABAQEAAwEAAAAAAAAAAAAAAREAITFBUf/aAAgBAQABPyGIIz91ILXNIg6caFQIJS4QSx7iqu//2gAMAwEAAgADAAAAEJ8P/8QAFhEBAQEAAAAAAAAAAAAAAAAAAQAR/9oACAEDAQE/EEds3//EABURAQEAAAAAAAAAAAAAAAAAABEA/9oACAECAQE/EATv/8QAGxABAAMBAAMAAAAAAAAAAAAAAQARITGRofD/2gAIAQEAAT8QTje177ioAUG2vmXIgvXF+ZwDFyXCvKEGhiKdW2f/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Audio Switch&quot;
+        title=&quot;Audio Switch&quot;
+        src=&quot;/static/2071fcc15d8b59f8c38944cba55b7974/1c72d/audio-switch.jpg&quot;
+        srcset=&quot;/static/2071fcc15d8b59f8c38944cba55b7974/a80bd/audio-switch.jpg 148w,
+/static/2071fcc15d8b59f8c38944cba55b7974/1c91a/audio-switch.jpg 295w,
+/static/2071fcc15d8b59f8c38944cba55b7974/1c72d/audio-switch.jpg 590w,
+/static/2071fcc15d8b59f8c38944cba55b7974/a8a14/audio-switch.jpg 885w,
+/static/2071fcc15d8b59f8c38944cba55b7974/72e01/audio-switch.jpg 1024w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Audio Switch&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;p&gt;A minor honorable mention here is a front mounted USB hub, which makes it easy to plug in an SD card reader, U2F key, or anything else you might need quick access to. I don’t use it a ton now as I have a permanent security key poking out of the monitor, but it’s been handy in the past. You’ll note that I’ve opted to mount all devices on the underside of my desk so they’re easily accessible.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/13b85aabff6674df91efdaf89272bc76/d2602/under-desk.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 44.5945945945946%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAJABQDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAwAE/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAP/2gAMAwEAAhADEAAAAQiGVdkMf//EABoQAAICAwAAAAAAAAAAAAAAAAIDAAEEMUH/2gAIAQEAAQUCtrIOSyEw7udHX//EABYRAQEBAAAAAAAAAAAAAAAAAAEAEf/aAAgBAwEBPwFLC//EABYRAQEBAAAAAAAAAAAAAAAAAAEAEf/aAAgBAgEBPwEbW//EABkQAAIDAQAAAAAAAAAAAAAAAAABAiAhM//aAAgBAQAGPwLJGs6NU//EABwQAAICAgMAAAAAAAAAAAAAAAEhABEQMUFRcf/aAAgBAQABPyEVq5uG2hqWryAzuHTB/9oADAMBAAIAAwAAABA7H//EABcRAAMBAAAAAAAAAAAAAAAAAAABMRH/2gAIAQMBAT8QTRZQ/8QAFxEBAQEBAAAAAAAAAAAAAAAAAQARMf/aAAgBAgEBPxBEydu3/8QAHRAAAgEEAwAAAAAAAAAAAAAAAREAECExgXGRwf/aAAgBAQABPxAsLByamCGxh05ekEBph7nqmwz/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Front-mounted controls&quot;
+        title=&quot;Front-mounted controls&quot;
+        src=&quot;/static/13b85aabff6674df91efdaf89272bc76/1c72d/under-desk.jpg&quot;
+        srcset=&quot;/static/13b85aabff6674df91efdaf89272bc76/a80bd/under-desk.jpg 148w,
+/static/13b85aabff6674df91efdaf89272bc76/1c91a/under-desk.jpg 295w,
+/static/13b85aabff6674df91efdaf89272bc76/1c72d/under-desk.jpg 590w,
+/static/13b85aabff6674df91efdaf89272bc76/a8a14/under-desk.jpg 885w,
+/static/13b85aabff6674df91efdaf89272bc76/fbd2c/under-desk.jpg 1180w,
+/static/13b85aabff6674df91efdaf89272bc76/d2602/under-desk.jpg 4032w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Front-mounted controls&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;The last bit, which frankly is overkill at this point, was removing excessive cables from the Macbook, and more importantly removing the quite buggy multi-port adapter that Apple sells. I opted for &lt;a href=&quot;https://www.amazon.com/gp/product/B07N4C79G1/&quot;&gt;Elgato’s Thunderbolt Dock&lt;/a&gt; as I had heard really great things. I don’t love the price point, but I figured that I’m going to be getting a lot of use out of this so I can justify it. This allowed me to run everything to the dock, and then have a short cable going from the dock to my Macbook. Even in a situation where you don’t have multiple machines, this would be a great add-on to simplify life. It has a DisplayPort connection, but unfortunately the Alienware only has one DP input. So instead I opted for a USB-C to HDMI connection.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/68ef0c3c16949c558d1ae7a3d712dd11/72e01/elgato-dock.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 38.513513513513516%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAIABQDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAED/8QAFgEBAQEAAAAAAAAAAAAAAAAAAwEC/9oADAMBAAIQAxAAAAGUJMhqf//EABgQAQEAAwAAAAAAAAAAAAAAAAIRARIi/9oACAEBAAEFAt1C+sk3/8QAFREBAQAAAAAAAAAAAAAAAAAAABH/2gAIAQMBAT8BiP/EABURAQEAAAAAAAAAAAAAAAAAAAAR/9oACAECAQE/Aar/xAAZEAEAAgMAAAAAAAAAAAAAAAABACEDERL/2gAIAQEABj8CDkZeLUpn/8QAGhABAAIDAQAAAAAAAAAAAAAAAQBRESExYf/aAAgBAQABPyFIhaWH1ehjFoKwz//aAAwDAQACAAMAAAAQe8//xAAWEQEBAQAAAAAAAAAAAAAAAAAAARH/2gAIAQMBAT8QssP/xAAWEQEBAQAAAAAAAAAAAAAAAAABABH/2gAIAQIBAT8QGFq//8QAGhABAQACAwAAAAAAAAAAAAAAAREAQVGRof/aAAgBAQABPxCBX1nR1rD3btKh0XErh1Q8z//Z&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Elgato Thunderbolt Dock&quot;
+        title=&quot;Elgato Thunderbolt Dock&quot;
+        src=&quot;/static/68ef0c3c16949c558d1ae7a3d712dd11/1c72d/elgato-dock.jpg&quot;
+        srcset=&quot;/static/68ef0c3c16949c558d1ae7a3d712dd11/a80bd/elgato-dock.jpg 148w,
+/static/68ef0c3c16949c558d1ae7a3d712dd11/1c91a/elgato-dock.jpg 295w,
+/static/68ef0c3c16949c558d1ae7a3d712dd11/1c72d/elgato-dock.jpg 590w,
+/static/68ef0c3c16949c558d1ae7a3d712dd11/a8a14/elgato-dock.jpg 885w,
+/static/68ef0c3c16949c558d1ae7a3d712dd11/72e01/elgato-dock.jpg 1024w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Elgato Thunderbolt Dock&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;All in all I’m fairly happy with things. The USB switcher has a bit of acceptable lag when toggling, and I have noticed some power issues where it’ll reset devices. The Elgato dock has worked great, though it’ll swap your audio and mic jacks to “USB Codec” when you plug the Macbook in, which is a terrible experience if you’re in a meeting. To some degree I wish it was more of a passthru, but for a normal user thats probably fine. It’s honestly only an issue when you’re trying to use both computers at the same time and you’re just plugging into the dock for power.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://excalidraw.com/#json=5764882850906112,C3MeytC7WoUKtcsMuhvISA&quot;&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 57.432432432432435%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAALCAYAAAB/Ca1DAAAACXBIWXMAAAsSAAALEgHS3X78AAAB+ElEQVQoz3VTy4rUQBTND/ojfoCge7eCs3I9IIjMbAaXMgvd6IiizAPpZmS603l0ksq7knrmeCvpSAc1UKkq6t5T5557ysN/PikEkiSBMQZCSkip/hk3DMNi72mt0XUd3KyUQt/3lCyRMYbNdou6bqBFD15V0JzWWQjTlhiUJDD7F6jHOYfv+8iyDGVZoqbEjOXYRQnCOEWcpgQEvLl6gvd3LykbsJrA3CDQGXAenvvFUUxMajRNg5a3SDKGINrDD+MRsCkULq6f43L1agIYUQ2BzjIcMdR0ULXNWK61Fo0UaFgCtr5BxVLUDR8DDeUWeXVgRHuSRZM8DmqwA50bqF7Da0ifhNcjXUuaKKPHpM3Gxy6IUeUlWGERXD5G/OUFXU7A+1/I706R/zxDW9RQnQFnHdqsg1d0LcIqn1gQW0VdtVrg4etrxNdvobsUrrD9p6eIvp2gJdn6MgO7PQVbnUNwvuxyQGDywMrRV65zNB7CK6z8j1TKlEBVkSxAJyucfX+GqFofyreLxnhcCTCygyU4Z5VtsBsD3kX3OA9Xf25WziYGEKbGyYdHWMefke4Lslm3BGxJw7gqIKnckiyTkn0MNecm2+FHsp0Cid7k1aW5XRNnD87zaJuegt3LcIZ2L6MsCpTkRUtmF72AoDNneAcwd/nYzMfr32OkTRSIH8TuAAAAAElFTkSuQmCC&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Rough Wiring Diagram&quot;
+        title=&quot;Rough Wiring Diagram&quot;
+        src=&quot;/static/520269e2e4bbfc9637aa60fec3165249/fcda8/diagram.png&quot;
+        srcset=&quot;/static/520269e2e4bbfc9637aa60fec3165249/12f09/diagram.png 148w,
+/static/520269e2e4bbfc9637aa60fec3165249/e4a3f/diagram.png 295w,
+/static/520269e2e4bbfc9637aa60fec3165249/fcda8/diagram.png 590w,
+/static/520269e2e4bbfc9637aa60fec3165249/efc66/diagram.png 885w,
+/static/520269e2e4bbfc9637aa60fec3165249/c83ae/diagram.png 1180w,
+/static/520269e2e4bbfc9637aa60fec3165249/5e17e/diagram.png 2668w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Rough Wiring Diagram&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;As some of y’all will likely ask, here’s a more detailed list of the equipment I use, as well as some of the items I highlighted above:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.dell.com/en-us/shop/new-alienware-34-curved-gaming-monitor-aw3420dw/apd/210-atzq/monitors-monitor-accessories&quot;&gt;Alienware AW3420DW&lt;/a&gt; - Get a cheaper monitor bother unless you want GSync&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.ergotron.com/en-us/products/product-details/45-475&quot;&gt;Ergotron HX Monitor Arm&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.dyson.com/task-lighting/dyson-lightcycle-overview.html&quot;&gt;Dyson Lightcycle&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.logitechg.com/en-us/products/gaming-mouse-pads/powerplay-wireless-charging.html&quot;&gt;Logitech’s PowerPlay System&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.bluedesigns.com/products/yeti/&quot;&gt;Yeti Blue Microphone&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://www.rode.com/accessories/psa1&quot;&gt;Rode Boom Arm&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.focal.com/en/headphones-0/headphones/for-home/elear&quot;&gt;Focal Elear Headphones&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://chordelectronics.co.uk/product/mojo/&quot;&gt;Mojo DAC&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://us.creative.com/p/speakers/gigaworks-t40-series-ii&quot;&gt;Creative T40 Series Speakers&lt;/a&gt; - I’ve had these for a decade&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://pcpartpicker.com/b/YNr6Mp&quot;&gt;My Desktop PC build&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.elgato.com/en/dock/thunderbolt-3&quot;&gt;Elgato Thunderbolt 3 Dock&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.amazon.com/gp/product/B073GWCRP3/&quot;&gt;3.5mm Audio Switch&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.amazon.com/gp/product/B07DKD7JHG/&quot;&gt;USB Switch&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.amazon.com/gp/product/B00XMD7KPU/&quot;&gt;Anker USB Hub&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I probably wouldn’t buy many of these things at full price (like the DAC and headphones), but if you find them on sale I’d considering upgrading. Definitely get a boom arm though if you’ve got an external mic. Huge quality of life upgrade, as is the external mic itself.&lt;/p&gt;</content:encoded></item><item><title><![CDATA[My Journey Into Home Automation]]></title><description><![CDATA[A while back I moved into a new home, and with it I decided I wanted to explore the current state of the so-called “smart home” devices…]]></description><link>https://cra.mr/my-journey-into-home-automation/</link><guid isPermaLink="false">https://cra.mr/my-journey-into-home-automation/</guid><pubDate>Sat, 01 Feb 2020 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;A while back I moved into a new home, and with it I decided I wanted to explore the current state of the so-called “smart home” devices. Prior to this I had a couple of Philips Hue bulbs connected to Google Home, but that was the extent of it. Those bulbs only existed at the end of the day to make it easy to turn off lights with your voice. Well, barring the part where you have to shout “Hey Google” three times before the devices recognize whats going on. You’d think they’d come up with a better phrase which was easier to annunciate. I should mention I also had a fairly entry level Ubiquiti network — a high-end prosumer brand — that I had been using for a couple of years, and was extremely happy with.&lt;/p&gt;
+&lt;p&gt;This is part one of my journey into over engineering my house’s infrastructure, making terrible choices, and continuously iteration on those decisions. I’m intending to continue writing about this, and will likely cover a different topic in each post.&lt;/p&gt;
+&lt;h1&gt;Rackin’ Up&lt;/h1&gt;
+&lt;p&gt;The first thing I did upon moving in, whether it makes any sense or not, was upgrade my networking gear to the latest generation. I knew Ubiquiti had a v2 of their core controller which also would allow me to use their security cameras, and given the high quality experience I had previously it was the easiest decision I made. I also knew I wanted to move things into a rack mounted solution rather than stuffing them in a random end table. It’s worth noting that the core driver here wasn’t so much my OCD or curiosity, but more than I needed a centralized location for the hardwired ethernet in the house.&lt;/p&gt;
+&lt;p&gt;So, I quickly evaluated what I might need for a rack. I found a great Tripp Lite 12U wall-mounted rack on Amazon, and got to Prime’in. It had plenty of space to fit all of the networking gear, and would also let me replace my Intel NUC (which had recently croaked) with a small rack mounted PC.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/6a47b46241727106e14c987597478f10/a2510/rack-wall-1.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 104.72972972972974%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAVABQDASIAAhEBAxEB/8QAGQABAAMBAQAAAAAAAAAAAAAAAAEDBAIF/8QAFQEBAQAAAAAAAAAAAAAAAAAAAQD/2gAMAwEAAhADEAAAAcdvO0oSHyrBNwH/xAAbEAACAwADAAAAAAAAAAAAAAABAwIRIgAEI//aAAgBAQABBQKmGYDOLugyUXSZS06DB6nY6+Yf/8QAFBEBAAAAAAAAAAAAAAAAAAAAIP/aAAgBAwEBPwEf/8QAFBEBAAAAAAAAAAAAAAAAAAAAIP/aAAgBAgEBPwEf/8QAGxAAAgIDAQAAAAAAAAAAAAAAAAECMRESYSH/2gAIAQEABj8ClrtZbHnNkkq2H7Fsb6SfSkjHT//EABwQAQACAwADAAAAAAAAAAAAAAEAESExUUFhwf/aAAgBAQABPyFsBAjCy1Tb7mKaTqUNWS3L5iLjv9vwTbDbxFQNLhMsZ2n/2gAMAwEAAgADAAAAEIwoQv/EABQRAQAAAAAAAAAAAAAAAAAAACD/2gAIAQMBAT8QH//EABYRAQEBAAAAAAAAAAAAAAAAAAEAEP/aAAgBAgEBPxBZxv/EAB0QAQEAAwACAwAAAAAAAAAAAAERACExcYGRodH/2gAIAQEAAT8QIadETfMIS1qJI+8bV0OtEP3FzMlbNzHJBhJt+ceMa2cuCtZWjR3zjzSSvftxsoF7eDP/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Wall-mounted Rack&quot;
+        title=&quot;Wall-mounted Rack&quot;
+        src=&quot;/static/6a47b46241727106e14c987597478f10/1c72d/rack-wall-1.jpg&quot;
+        srcset=&quot;/static/6a47b46241727106e14c987597478f10/a80bd/rack-wall-1.jpg 148w,
+/static/6a47b46241727106e14c987597478f10/1c91a/rack-wall-1.jpg 295w,
+/static/6a47b46241727106e14c987597478f10/1c72d/rack-wall-1.jpg 590w,
+/static/6a47b46241727106e14c987597478f10/a8a14/rack-wall-1.jpg 885w,
+/static/6a47b46241727106e14c987597478f10/a2510/rack-wall-1.jpg 1000w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Wall-mounted Rack&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;Now when I went into this, I didn’t do nearly enough research on rack depths, so while the wall mounted unit was great, it was about two inches too short for me to mount the eventual server I built. That was my first mistake.&lt;/p&gt;
+&lt;p&gt;A few more things unfolded and I realized ultimately I wasn’t going to have enough depth, let alone vertical space or weight-capacity in this unit. I was hoping to not only mount the networking gear, but also this new 2U server, my 8-bay Synology NAS, and now I realized I needed several Sonos AMPs and the ideal location for them was also within the rack.&lt;/p&gt;
+&lt;p&gt;Some unfortunate (depending on how you see it) events occurred at this time as well. As I was trying to get everything back online after my move, I realized that not only had my Intel NUC fallen over, but my Synology NAS had a drive failure, and was running out of space. It also didn’t have enough free drive bays to cheaply expand the array, as I was using Raid 10 which doesn’t support using the existing array, but rather required enough total space in an entirely new array to fit all existing data.&lt;/p&gt;
+&lt;p&gt;At this point I accepted that I had made a poorly informed choice on the rack, and also that I was going to need a new NAS solution.&lt;/p&gt;
+&lt;h1&gt;Replacing the NAS&lt;/h1&gt;
+&lt;p&gt;The first thing I did - given I had already made a mistake with the 2U server build - was explore what rack mounted NAS options existed. I very much love the Synology appliance as its well designed and had been very stable. The challenge however was to expand to another unit, especially a rack mounted one, would have likely set me back $1,500+.&lt;/p&gt;
+&lt;p&gt;When I was talking to a colleague about this he suggest I explore reburbished servers, and I ended up finding a great 24-bay option for around $600 off of &lt;a href=&quot;https://theserverstore.com&quot;&gt;theserverstore.com&lt;/a&gt;. I purchased this and waited for it to arrive, to ensure I could appropriately measure the total depth I’d need for what was certainly going to be the largest component of the system.&lt;/p&gt;
+&lt;p&gt;When the server arrived I couldn’t believe the sheer size of the unit. Even though I’ve been in the software industry for 20 years, this was the first time I had ever seen one of these kinds of devices in real life.&lt;/p&gt;
+&lt;figure class=&quot;gatsbyRemarkImagesGrid&quot;&gt;&lt;div class=&quot;gatsbyRemarkImagesGrid-grid&quot; style=&quot;
+            grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));
+          &quot;&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/9af7fd9a270f84d78c57327da006b626/f212f/nas-1.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 69.5945945945946%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAOABQDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAIDBP/EABYBAQEBAAAAAAAAAAAAAAAAAAEAAv/aAAwDAQACEAMQAAABxXVMu4qF/8QAGhAAAgMBAQAAAAAAAAAAAAAAAQIAAxMSIv/aAAgBAQABBQIOaDvW0X0GQCJQjv1jP//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQMBAT8BP//EABYRAAMAAAAAAAAAAAAAAAAAAAEQEf/aAAgBAgEBPwGhf//EABwQAAICAwEBAAAAAAAAAAAAAAABAhESIjFRgf/aAAgBAQAGPwJbyx8G3J/UXHhUtiuGHT//xAAZEAEBAQEBAQAAAAAAAAAAAAABEQBBIWH/2gAIAQEAAT8hEaIvgw4OuQyLncB1wb3XR0Aj4d//2gAMAwEAAgADAAAAEHA//8QAFhEAAwAAAAAAAAAAAAAAAAAAARAR/9oACAEDAQE/EIV//8QAFhEBAQEAAAAAAAAAAAAAAAAAEQEQ/9oACAECAQE/EKhn/8QAGxABAQADAQEBAAAAAAAAAAAAAREAIWExUYH/2gAIAQEAAT8QIWnopu+Pcdgd8AhA0uAbbx+6waREJ7vOZEd/F+OLwwFDVO9z/9k=&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;NAS Front&quot;
+        title=&quot;NAS Front&quot;
+        src=&quot;/static/9af7fd9a270f84d78c57327da006b626/1c72d/nas-1.jpg&quot;
+        srcset=&quot;/static/9af7fd9a270f84d78c57327da006b626/a80bd/nas-1.jpg 148w,
+/static/9af7fd9a270f84d78c57327da006b626/1c91a/nas-1.jpg 295w,
+/static/9af7fd9a270f84d78c57327da006b626/1c72d/nas-1.jpg 590w,
+/static/9af7fd9a270f84d78c57327da006b626/a8a14/nas-1.jpg 885w,
+/static/9af7fd9a270f84d78c57327da006b626/f212f/nas-1.jpg 916w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;NAS Front&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/d802323dabbd5124c4d975b1f45b9657/f212f/nas-2.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 69.5945945945946%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAOABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQBAgP/xAAWAQEBAQAAAAAAAAAAAAAAAAACAAH/2gAMAwEAAhADEAAAAZVzcyuKhX//xAAbEAACAwADAAAAAAAAAAAAAAABAgADERITIv/aAAgBAQABBQIweIOeJZtQTpRr8P8A/8QAFBEBAAAAAAAAAAAAAAAAAAAAEP/aAAgBAwEBPwE//8QAFREBAQAAAAAAAAAAAAAAAAAAARD/2gAIAQIBAT8BZ//EABoQAAMAAwEAAAAAAAAAAAAAAAABESEiMWH/2gAIAQEABj8COmri9Iy9ZlVn/8QAGhABAQADAQEAAAAAAAAAAAAAAREAIUExUf/aAAgBAQABPyEhr04/cdqk3J3HBs+GZBbGXKGuRTTo5//aAAwDAQACAAMAAAAQay//xAAXEQEAAwAAAAAAAAAAAAAAAAAAARFh/9oACAEDAQE/EI1b/8QAFxEAAwEAAAAAAAAAAAAAAAAAAAERIf/aAAgBAgEBPxBVcIf/xAAcEAEBAAIDAQEAAAAAAAAAAAABEQAhQVFhcfD/2gAIAQEAAT8QRtZWyw6JOfcE4hc8zdDSZRAloE+dnTioiAhmnR+8xLZWVNF8y4UBobXP/9k=&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;NAS Inside&quot;
+        title=&quot;NAS Inside&quot;
+        src=&quot;/static/d802323dabbd5124c4d975b1f45b9657/1c72d/nas-2.jpg&quot;
+        srcset=&quot;/static/d802323dabbd5124c4d975b1f45b9657/a80bd/nas-2.jpg 148w,
+/static/d802323dabbd5124c4d975b1f45b9657/1c91a/nas-2.jpg 295w,
+/static/d802323dabbd5124c4d975b1f45b9657/1c72d/nas-2.jpg 590w,
+/static/d802323dabbd5124c4d975b1f45b9657/a8a14/nas-2.jpg 885w,
+/static/d802323dabbd5124c4d975b1f45b9657/f212f/nas-2.jpg 916w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;NAS Inside&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;p&gt;As soon as It arrived I began setting it up, but to my surprise it wouldn’t boot. This took a couple of days as I didn’t have a VGA cable (oof) so I had no display to work from. After going through and ripping it apart, reinstalling everything, and then individually testing all 16 sticks of memory I eventually found one that was bad. Nothing worth writing home over, as I still had 60gb which was just going to collect dust anyways.&lt;/p&gt;
+&lt;p&gt;The NAS was up and running (using &lt;a href=&quot;https://unraid.net/&quot;&gt;Unraid&lt;/a&gt;) and transferring data from my Synology, so now we could go back to sorting out the rest of our problems.&lt;/p&gt;
+&lt;h1&gt;Expanding the Rack&lt;/h1&gt;
+&lt;p&gt;Finding a larger rack - especially with what I knew at this point - was a lot trickier. I knew that full size data center racks were extremely large, and most importantly far too deep to fit well in my garage. I also knew that I wanted it mostly covered given it was going to be in my garage and it would get fairly dusty.&lt;/p&gt;
+&lt;p&gt;I started by whipping up an excel sheet to figure out a rough layout for the rack. I knew it was unlikely I needed more than 20U, and I also knew the NAS was going to be the unit with the most depth. Pretty much anything else I can buy was a lot more flexible in its dimensions. So with that I spent a number of days searching for the options I had.&lt;/p&gt;
+&lt;p&gt;It was actually quite difficult to find selection on racks that were considered mid-depth. Mostly there was no single source of truth that would let me specify the range of depths I wanted, and there also seems to be a huge variety of manufacturers of these products. The biggest difficulty was that many of the more well known manufacturers didn’t actually sell what I needed.&lt;/p&gt;
+&lt;p&gt;Eventually I realized that some of the brands which I had seen on Amazon offered more consumer focused styles. I hunch is because these are often used for media cabinets more so than what I’m doing, but that didn’t matter to me. After searching through their official websites for a while, I found that Navepoint had a really fairly priced unit that looked nice and was also available to purchase on Amazon. It was larger than I needed, but that was actually fine as I had enough vertical space.&lt;/p&gt;
+&lt;p&gt;When it was all said I done, I landed on &lt;a href=&quot;https://www.amazon.com/gp/product/B07XSBXQNX&quot;&gt;this 42U mid-depth rack&lt;/a&gt; from Navepoint.&lt;/p&gt;
+&lt;h1&gt;Installation&lt;/h1&gt;
+&lt;p&gt;First lesson: don’t try to unload one of these off a truck by yourself.&lt;/p&gt;
+&lt;p&gt;I set up the rack in what I thought would be its permanent home - a nice open area next to some shelves running along a wall in my garage. I later changed this due to fear of one of the water-filled pipes in the rafters bursting and racking up an enormous bill. All in all, the rack looked great, and the features were exactly what I needed.&lt;/p&gt;
+&lt;figure class=&quot;gatsbyRemarkImagesGrid&quot;&gt;&lt;div class=&quot;gatsbyRemarkImagesGrid-grid&quot; style=&quot;
+            grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));
+          &quot;&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/076df0c5f8af2f12b329deec68cbd340/69128/rack-1.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 133.1081081081081%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAbABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQCAwX/xAAWAQEBAQAAAAAAAAAAAAAAAAABAAL/2gAMAwEAAhADEAAAAYrtQyslJKyl6saxpBv/xAAfEAABAwQDAQAAAAAAAAAAAAACAAEDBBETIhIxMjP/2gAIAQEAAQUCqthij3xqb5sW/M1U3BAb5bOym6i9uv/EABYRAQEBAAAAAAAAAAAAAAAAABEAEP/aAAgBAwEBPwHVv//EABYRAAMAAAAAAAAAAAAAAAAAAAAQEf/aAAgBAgEBPwF0/8QAIRAAAQMDBAMAAAAAAAAAAAAAAAECERAhMQMSIjJhcaH/2gAIAQEABj8CZbAzjCSdRvtDTTypn4bZGlpolP/EAB0QAQACAgIDAAAAAAAAAAAAAAEAESExQbFRkfH/2gAIAQEAAT8hvurRF3yFzdcxcROmk6o974RTSfaMANMSwq77nGVjVt5md0wZ/9oADAMBAAIAAwAAABC4ybH/xAAXEQEBAQEAAAAAAAAAAAAAAAABEQAh/9oACAEDAQE/EE7phjctWG//xAAZEQACAwEAAAAAAAAAAAAAAAAAARARITH/2gAIAQIBAT8QTwsXI//EAB4QAQEBAQACAgMAAAAAAAAAAAERACExQVFxYaHR/9oACAEBAAE/EHJNAAteGYk0iSeevfqauYgpnjDVkjeyxqSLbh8n+mUon4X7YjWYV9meigwr49pg8Qu8LM4UhIuADoET7EmdQ4b/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Rack w/ Sonos&quot;
+        title=&quot;Rack w/ Sonos&quot;
+        src=&quot;/static/076df0c5f8af2f12b329deec68cbd340/1c72d/rack-1.jpg&quot;
+        srcset=&quot;/static/076df0c5f8af2f12b329deec68cbd340/a80bd/rack-1.jpg 148w,
+/static/076df0c5f8af2f12b329deec68cbd340/1c91a/rack-1.jpg 295w,
+/static/076df0c5f8af2f12b329deec68cbd340/1c72d/rack-1.jpg 590w,
+/static/076df0c5f8af2f12b329deec68cbd340/a8a14/rack-1.jpg 885w,
+/static/076df0c5f8af2f12b329deec68cbd340/69128/rack-1.jpg 1036w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Rack w/ Sonos&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/4a0cc7977e9a6852ca6f699d119d7032/69128/rack-2.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 133.1081081081081%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAbABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAMEBQL/xAAXAQEBAQEAAAAAAAAAAAAAAAAAAQID/9oADAMBAAIQAxAAAAFUr3ZrjkJI64DXNMnT/8QAHBAAAgMAAwEAAAAAAAAAAAAAAQIAAxIEITEk/9oACAEBAAEFArm+aruzJBbqoFdG5xOQDWiOd5MvMX3yf//EABcRAAMBAAAAAAAAAAAAAAAAAAAQEmH/2gAIAQMBAT8BdYf/xAAXEQADAQAAAAAAAAAAAAAAAAAAARAR/9oACAECAQE/AVdP/8QAHRAAAgIBBQAAAAAAAAAAAAAAABEBAjESIEFCcf/aAAgBAQAGPwKsQysO2SckSmiijscGlsr6Z2f/xAAbEAADAQEBAQEAAAAAAAAAAAAAAREhMUFxof/aAAgBAQABPyH3Qn1CtU6zpAJzfBr3Bj9JqX2MIigZIat8rhDn4HN16O3ofhYf/9oADAMBAAIAAwAAABBE3o7/xAAZEQADAAMAAAAAAAAAAAAAAAAAARExodH/2gAIAQMBAT8QeSFjo7djfT//xAAZEQACAwEAAAAAAAAAAAAAAAAAARARITH/2gAIAQIBAT8QbCxch//EAB8QAQEAAgIBBQAAAAAAAAAAAAERACFBUTFhcYGhsf/aAAgBAQABPxAl8DfBqOBiC6f3CBk4qDgpYabEV5+cHDdAHNFWZUADhfXE80iw1uzK5JwmlAznIO93iJaG798Eisj95KBB0Gf/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Rack w/ Networking&quot;
+        title=&quot;Rack w/ Networking&quot;
+        src=&quot;/static/4a0cc7977e9a6852ca6f699d119d7032/1c72d/rack-2.jpg&quot;
+        srcset=&quot;/static/4a0cc7977e9a6852ca6f699d119d7032/a80bd/rack-2.jpg 148w,
+/static/4a0cc7977e9a6852ca6f699d119d7032/1c91a/rack-2.jpg 295w,
+/static/4a0cc7977e9a6852ca6f699d119d7032/1c72d/rack-2.jpg 590w,
+/static/4a0cc7977e9a6852ca6f699d119d7032/a8a14/rack-2.jpg 885w,
+/static/4a0cc7977e9a6852ca6f699d119d7032/69128/rack-2.jpg 1036w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Rack w/ Networking&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;p&gt;I had gotten the Sonos Amps rack mounted at this point, as well as we NAS and 2U server. From there I moved over the networking gear and began visualizing what I might want to change. I knew I could start actually finalizing components. No more was I doing temporary work, things that were getting installed were going to be in their final homes.&lt;/p&gt;
+&lt;p&gt;&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/4bb57472b7ed54a91449f765a5ff86ce/5e0ab/sonos-1.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 49.32432432432432%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAKABQDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAMEBf/EABUBAQEAAAAAAAAAAAAAAAAAAAAB/9oADAMBAAIQAxAAAAFLcms1CMr/xAAYEAADAQEAAAAAAAAAAAAAAAABAhIAA//aAAgBAQABBQK2u+uTsoUbmohVG//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQMBAT8BP//EABQRAQAAAAAAAAAAAAAAAAAAABD/2gAIAQIBAT8BP//EABwQAQACAQUAAAAAAAAAAAAAAAEAIRIDEBExcf/aAAgBAQAGPwJwMTydzjUp2KI0T//EABwQAAICAgMAAAAAAAAAAAAAAAABETFRkUFx4f/aAAgBAQABPyGBkw6QmV9eksYcciJ2h1r1HZWD/9oADAMBAAIAAwAAABBwz//EABYRAQEBAAAAAAAAAAAAAAAAAAEQEf/aAAgBAwEBPxB1n//EABcRAQEBAQAAAAAAAAAAAAAAAAEAEVH/2gAIAQIBAT8QA5Zf/8QAHBABAAMAAgMAAAAAAAAAAAAAAQARITFRQWGB/9oACAEBAAE/EEasIPBw3cGz0NG4OLxFqp3n2X1DnkjECmqI/aVnHRP/2Q==&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Sonos Amps&quot;
+        title=&quot;Sonos Amps&quot;
+        src=&quot;/static/4bb57472b7ed54a91449f765a5ff86ce/1c72d/sonos-1.jpg&quot;
+        srcset=&quot;/static/4bb57472b7ed54a91449f765a5ff86ce/a80bd/sonos-1.jpg 148w,
+/static/4bb57472b7ed54a91449f765a5ff86ce/1c91a/sonos-1.jpg 295w,
+/static/4bb57472b7ed54a91449f765a5ff86ce/1c72d/sonos-1.jpg 590w,
+/static/4bb57472b7ed54a91449f765a5ff86ce/a8a14/sonos-1.jpg 885w,
+/static/4bb57472b7ed54a91449f765a5ff86ce/fbd2c/sonos-1.jpg 1180w,
+/static/4bb57472b7ed54a91449f765a5ff86ce/5e0ab/sonos-1.jpg 1786w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Sonos Amps&lt;/figcaption&gt;
+  &lt;/figure&gt;&lt;/p&gt;
+&lt;p&gt;Over the next few weeks I began moving devices over, rerouting and cleaning up cables, and filling in the gaps (literally). This was my first time ever working with a system like this, and overall I’m pleased with the final result. There’s some things I may look to clean up down the road, but all in all its in a good place.&lt;/p&gt;
+&lt;figure class=&quot;gatsbyRemarkImagesGrid&quot;&gt;&lt;div class=&quot;gatsbyRemarkImagesGrid-grid&quot; style=&quot;
+            grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));
+          &quot;&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 400px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/a5d95161161b571593a9bdc30fedcd29/066f9/rack-3.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 212.83783783783784%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAArABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFBgP/xAAWAQEBAQAAAAAAAAAAAAAAAAABAAL/2gAMAwEAAhADEAAAAW5dSONwTC6523ATTnIFObojKgUhv//EAB0QAAIDAQADAQAAAAAAAAAAAAECAAMEIRESIjP/2gAIAQEAAQUC0sVA02pEu9l1R6mWKvN35EwTS3nJFPL6vgKzQJxIx7P/xAAWEQADAAAAAAAAAAAAAAAAAAAQESD/2gAIAQMBAT8BhD//xAAWEQEBAQAAAAAAAAAAAAAAAAAQARH/2gAIAQIBAT8BIaf/xAAeEAACAgEFAQAAAAAAAAAAAAAAARARIQIiMUFxkf/aAAgBAQAGPwLaYa+FsRbhOdHk3fBhHcYj/8QAHRABAAICAwEBAAAAAAAAAAAAAQARITFBUYFxsf/aAAgBAQABPyHPweTFVl1CgBcOB3iamozuUQoCdHPc08PyX52iMu3jDuYcB1eCPS6TMLzmIcXwgFT/2gAMAwEAAgADAAAAEJPWQYjP/8QAFxEBAQEBAAAAAAAAAAAAAAAAARARIf/aAAgBAwEBPxBjMPWf/8QAFxEBAQEBAAAAAAAAAAAAAAAAAREAIP/aAAgBAgEBPxA4WMNd/8QAHxABAAMAAwACAwAAAAAAAAAAAQARITFBUWGRcaHw/9oACAEBAAE/EAghVqhzzYwd0Bq2EbM2vYiCrNb9ZS6wVfKUQFXTzXROAYotfmCaHLtkSn+MS6m+/qNh3BTCx+CWtYwXA4qorRKA36h6idgpMHD1sZlLu0F/UYVNZ//Z&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Rack (Complete)&quot;
+        title=&quot;Rack (Complete)&quot;
+        src=&quot;/static/a5d95161161b571593a9bdc30fedcd29/066f9/rack-3.jpg&quot;
+        srcset=&quot;/static/a5d95161161b571593a9bdc30fedcd29/a80bd/rack-3.jpg 148w,
+/static/a5d95161161b571593a9bdc30fedcd29/1c91a/rack-3.jpg 295w,
+/static/a5d95161161b571593a9bdc30fedcd29/066f9/rack-3.jpg 400w&quot;
+        sizes=&quot;(max-width: 400px) 100vw, 400px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Rack (Complete)&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;figure class=&quot;gatsby-resp-image-figure&quot; style=&quot;&quot;&gt;
+    &lt;span
+      class=&quot;gatsby-resp-image-wrapper&quot;
+      style=&quot;position: relative; display: block; margin-left: auto; margin-right: auto; max-width: 590px; &quot;
+    &gt;
+      &lt;a
+    class=&quot;gatsby-resp-image-link&quot;
+    href=&quot;/static/284ef764b0a12ba255a135fc2685b270/4b190/rack-4.jpg&quot;
+    style=&quot;display: block&quot;
+    target=&quot;_blank&quot;
+    rel=&quot;noopener&quot;
+  &gt;
+    &lt;span
+    class=&quot;gatsby-resp-image-background-image&quot;
+    style=&quot;padding-bottom: 133.1081081081081%; position: relative; bottom: 0; left: 0; background-image: url(&apos;data:image/jpeg;base64,/9j/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVGC8aGi9jQjhCY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2P/wgARCAAbABQDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAQCAwUG/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgH/2gAMAwEAAhADEAAAAV626zdMiS5CzCKPSlYF/8QAHRAAAgIBBQAAAAAAAAAAAAAAAQIAEgMEESIyM//aAAgBAQABBQJ7QWiOauCxqUlQZm3TKXJgPDV+0Xp//8QAFBEBAAAAAAAAAAAAAAAAAAAAIP/aAAgBAwEBPwEf/8QAFREBAQAAAAAAAAAAAAAAAAAAEAH/2gAIAQIBAT8BIf/EACEQAAICAQIHAAAAAAAAAAAAAAABAjERECEiMlFxcoGR/9oACAEBAAY/AuKxYbFkUVZuqZnqX8OaRDxPWkex/8QAHRABAAMAAgMBAAAAAAAAAAAAAQARITFxQVGBof/aAAgBAQABPyEMttsdgGFvhlWvZk2GGuxpOINwAei5ltcG5KpbtjfJOLpHmfjz/9oADAMBAAIAAwAAABDbwE//xAAZEQACAwEAAAAAAAAAAAAAAAAAARARIUH/2gAIAQMBAT8Q6UPHH//EABcRAQEBAQAAAAAAAAAAAAAAAAEQETH/2gAIAQIBAT8QOEWk/8QAHRABAAMAAgMBAAAAAAAAAAAAAQARITFBYZHwwf/aAAgBAQABPxAsXiWCzPyI64mpywbAE12HcIEJQBq/MSqkHTEeZQ9wGvcB3pZhz6moCmJVe4T7cjVH6ucET8/E/9k=&apos;); background-size: cover; display: block;&quot;
+  &gt;&lt;/span&gt;
+  &lt;img
+        class=&quot;gatsby-resp-image-image&quot;
+        alt=&quot;Rack (Close-up)&quot;
+        title=&quot;Rack (Close-up)&quot;
+        src=&quot;/static/284ef764b0a12ba255a135fc2685b270/1c72d/rack-4.jpg&quot;
+        srcset=&quot;/static/284ef764b0a12ba255a135fc2685b270/a80bd/rack-4.jpg 148w,
+/static/284ef764b0a12ba255a135fc2685b270/1c91a/rack-4.jpg 295w,
+/static/284ef764b0a12ba255a135fc2685b270/1c72d/rack-4.jpg 590w,
+/static/284ef764b0a12ba255a135fc2685b270/4b190/rack-4.jpg 800w&quot;
+        sizes=&quot;(max-width: 590px) 100vw, 590px&quot;
+        style=&quot;width:100%;height:100%;margin:0;vertical-align:middle;position:absolute;top:0;left:0;&quot;
+        loading=&quot;lazy&quot;
+      /&gt;
+  &lt;/a&gt;
+    &lt;/span&gt;
+    &lt;figcaption class=&quot;gatsby-resp-image-figcaption&quot;&gt;Rack (Close-up)&lt;/figcaption&gt;
+  &lt;/figure&gt;
+&lt;/div&gt;&lt;/figure&gt;
+&lt;h1&gt;Part Breakdown&lt;/h1&gt;
+&lt;p&gt;Here’s a list of what’s currently in the rack:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.amazon.com/gp/product/B07XSBXQNX&quot;&gt;Navepoint 42U rack&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://store.ui.com/collections/routing-switching/products/unifiswitch-24-500w&quot;&gt;UniFi Switch 24-port&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://store.ui.com/collections/routing-switching/products/unifi-security-gateway-pro&quot;&gt;UniFi Security Gateway Pro&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://store.ui.com/products/unifi-cloudkey-gen2-plus&quot;&gt;UniFi Cloud Key Gen2 Plus&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;w/ &lt;a href=&quot;https://store.ui.com/collections/accessories/products/cloud-key-g2-rack-mount-accessory&quot;&gt;Cloud Key G2 Rack Mount Accessory&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;4x &lt;a href=&quot;https://www.sonos.com/en-us/shop/amp.html&quot;&gt;Sonos Amp&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2x &lt;a href=&quot;https://www.middleatlantic.com/products/accessories/rackshelves/rsh-manufacturer-alliance-bundles/rsha-sonos-amp2.aspx&quot;&gt;Sonos RSH Rack Mount kit&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2U custom-built server&lt;/li&gt;
+&lt;li&gt;4U Supermicro 24-bay NAS&lt;/li&gt;
+&lt;li&gt;Various Navepoint panel blanks&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A few devices which are sitting on the rack shelf:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://store.ui.com/collections/wireless/products/unifi-ac-lite&quot;&gt;UniFi AC Lite&lt;/a&gt; - temporary location&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://learn.adafruit.com/pi-hole-ad-pitft-tft-detection-display&quot;&gt;Pi-hole w/ PADD&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;SimpliSafe controller&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;And out of sight zip tied or otherwise mounted inside of the rack:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Lutron Connect controller&lt;/li&gt;
+&lt;li&gt;Lutron Extender&lt;/li&gt;
+&lt;li&gt;Philips Hue controller&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1&gt;Part Two&lt;/h1&gt;
+&lt;p&gt;I’ll be writing about what’s actually going on with the server and NAS, mostly with my ongoing Home Assistant learnings. If you’d like to explore on your own, I open source &lt;a href=&quot;https://github.com/dcramer/hive&quot;&gt;the majority of my configurations&lt;/a&gt; and the README contains some high level details.&lt;/p&gt;</content:encoded></item></channel></rss>
