@@ -1,0 +1,15 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; }
+body { margin: 0; background: #14161a; color: #e8e8ea; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+h1 { margin: 0 0 12px; font-size: 1.4rem; }
+.hint { color: #9aa0a6; font-size: 0.9rem; line-height: 1.6; }
+kbd { background: #2a2d33; border-radius: 4px; padding: 1px 5px; font-size: 0.8rem; }
+.start { font-size: 1.1rem; padding: 14px 22px; border-radius: 8px; border: 0; background: #4f8cff; color: #fff; cursor: pointer; }
+.volume { display: flex; gap: 10px; align-items: center; margin: 12px 0; }
+.keyboard { position: relative; height: 260px; user-select: none; touch-action: none; }
+.key { position: absolute; top: 0; margin: 0; padding: 0; border: 1px solid #000; cursor: pointer; }
+.key.white { height: 100%; background: #f7f7f2; border-radius: 0 0 6px 6px; display: flex; align-items: flex-end; justify-content: center; }
+.key.white.active { background: #bcd4ff; }
+.key.black { height: 62%; background: #1b1b1d; border-radius: 0 0 4px 4px; z-index: 2; }
+.key.black.active { background: #3c63b3; }
+.label { color: #777; font-size: 0.7rem; padding-bottom: 8px; pointer-events: none; }
