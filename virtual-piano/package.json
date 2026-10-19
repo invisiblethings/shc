@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/site.mjs pages && vite",
+    "build": "node scripts/site.mjs pages && vite build && node scripts/site.mjs post",
     "preview": "vite preview",
-    "test": "node --test src/*.test.js"
+    "test": "node --test src/*.test.js",
+    "pages": "node scripts/site.mjs pages",
+    "check": "node scripts/check-site.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

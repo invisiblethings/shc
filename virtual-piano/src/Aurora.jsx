@@ -3,6 +3,7 @@ import { isBlack, pitchHue } from "./notes.js";
 
 const RISE = 150; // px per second
 const MAX_PARTICLES = 360;
+const REDUCED = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Canvas of light that rises from the keys: every note draws a ribbon that grows
@@ -62,8 +63,8 @@ const Aurora = forwardRef(function Aurora({ width, height, keyX, whiteWidth, get
       ctx.fillStyle = halo;
       ctx.fillRect(x - half * 3.4, Math.max(0, top), half * 6.8, Math.max(0, bottom - Math.max(0, top)));
 
-      // Sparks leave the head of a held note.
-      if (r.t1 === null && s.particles.length < MAX_PARTICLES && Math.random() < 0.55 + r.vel * 0.4) {
+      // Sparks leave the head of a held note (not when the user prefers reduced motion).
+      if (r.t1 === null && !REDUCED() && s.particles.length < MAX_PARTICLES && Math.random() < 0.55 + r.vel * 0.4) {
         s.particles.push({
           x: x + (Math.random() - 0.5) * r.width * 1.6,
           y: Math.max(0, top),

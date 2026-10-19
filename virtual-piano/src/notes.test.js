@@ -60,10 +60,13 @@ test("fitRange: full piano when wide, a window when narrow", () => {
 });
 
 test("computer keyboard mapping and hints", () => {
-  assert.equal(keyToMidi("z", 48), 48);
-  assert.equal(keyToMidi("Q", 48), 60);
-  assert.equal(keyToMidi("-", 48), null);
+  assert.equal(keyToMidi("KeyZ", 48), 48);
+  assert.equal(keyToMidi("KeyQ", 48), 60);
+  assert.equal(keyToMidi("Digit2", 48), 61);
+  assert.equal(keyToMidi("Minus", 48), null);
   assert.equal(keyHints(48).get(48), "Z");
+  // AZERTY: the physical Q position types "A".
+  assert.equal(keyHints(48, new Map([["KeyQ", "a"]])).get(60), "A");
 });
 
 test("sample manifest covers A0..C8 with 30 files", () => {
@@ -103,4 +106,35 @@ test("stopping the demo mid-piece releases every held note and the pedal", () =>
   assert.equal(ended, 1);
   assert.equal(player.playing, false);
   mock.timers.reset();
+});
+
+import { SONGS, melodyEvents, parseMelody, songBySlug } from "./data/songs.js";
+import { KEY_CODES } from "./notes.js";
+
+test("every song parses, fits the piano, and its notes are playable from the computer keys", () => {
+  assert.equal(SONGS.length, 6);
+  for (const song of SONGS) {
+    const notes = parseMelody(song.melody).flat();
+    assert.ok(notes.length > 10, song.slug);
+    for (const n of notes) {
+      const offset = n.midi - song.base;
+      assert.ok(Object.values(KEY_CODES).includes(offset), `${song.slug}: ${n.name} not on a computer key`);
+      assert.ok(n.beats > 0);
+    }
+    const ev = melodyEvents(song);
+    assert.equal(ev.filter((e) => e.type === "on").length, notes.length);
+    assert.equal(ev.at(-1).type, "end");
+  }
+  assert.equal(songBySlug("ode-to-joy").title, "Ode to Joy");
+  assert.equal(songBySlug("nope"), null);
+});
+
+test("song bars add up: 4/4 songs fill whole bars", () => {
+  const beats = (slug) => parseMelody(songBySlug(slug).melody).flat().reduce((t, n) => t + n.beats, 0);
+  for (const slug of ["twinkle-twinkle-little-star", "mary-had-a-little-lamb", "ode-to-joy", "jingle-bells"]) {
+    assert.equal(beats(slug) % 4, 0, slug);
+  }
+  assert.equal(beats("happy-birthday") % 3, 0);
+  // Für Elise in 3/8 (16th = 0.5): a 2-note pickup, whole bars, seven whole bars, then a long final A.
+  assert.equal((beats("fur-elise") - 1 - 3) % 3, 0);
 });

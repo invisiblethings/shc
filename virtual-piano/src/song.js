@@ -23,7 +23,7 @@ const BARS = [
   { bass: "D2", chord: ["A3", "D4", "F#4", "A4"], melody: [[0, "D5", 3]] },
 ];
 
-/** Flatten the score into timed events (seconds from the start). */
+/** Flatten the demo score into timed events (seconds from the start). */
 export function buildEvents() {
   const events = [];
   const note = (beat, name, len, vel) => {
@@ -50,6 +50,7 @@ export function buildEvents() {
   return events.filter((e) => e.at >= 0).sort((a, b) => a.at - b.at);
 }
 
+/** Plays a list of timed events through press/release/pedal callbacks. */
 export class SongPlayer {
   constructor({ press, release, pedal, onEnd }) {
     this.press = press;
@@ -61,10 +62,10 @@ export class SongPlayer {
     this.playing = false;
   }
 
-  play() {
+  play(events = buildEvents()) {
     this.stop();
     this.playing = true;
-    for (const e of buildEvents()) {
+    for (const e of events) {
       this.timers.push(
         setTimeout(() => {
           if (e.type === "on") {
@@ -73,8 +74,7 @@ export class SongPlayer {
           } else if (e.type === "off") {
             this.sounding.delete(e.midi);
             this.release(e.midi);
-          }
-          else if (e.type === "pedal") this.pedal(e.down);
+          } else if (e.type === "pedal") this.pedal(e.down);
           else if (e.type === "end") this.#finish();
         }, e.at * 1000 + 200),
       );
