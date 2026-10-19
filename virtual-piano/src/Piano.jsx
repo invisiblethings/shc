@@ -24,6 +24,7 @@ export default function Piano({ labels = "keys", song: songSlug = null, demo = f
   const aurora = useRef(null);
   const rootRef = useRef(null);
   const stageRef = useRef(null);
+  const glowRef = useRef(null);
 
   const [phase, setPhase] = useState("idle"); // idle | loading | ready | error
   const [progress, setProgress] = useState(0);
@@ -31,6 +32,7 @@ export default function Piano({ labels = "keys", song: songSlug = null, demo = f
   const [reverb, setReverb] = useState(0.35);
   const [base, setBase] = useState(initialBase);
   const [width, setWidth] = useState(1000);
+  const [glowHeight, setGlowHeight] = useState(200);
   const [active, setActive] = useState(() => new Set());
   const [pedal, setPedal] = useState(false);
   const [playing, setPlaying] = useState(null); // null | "demo" | "song"
@@ -56,11 +58,18 @@ export default function Piano({ labels = "keys", song: songSlug = null, demo = f
   // Measure before the first paint so the keys don't jump (layout shift).
   useLayoutEffect(() => {
     setWidth(Math.floor(stageRef.current.getBoundingClientRect().width));
+    setGlowHeight(Math.floor(glowRef.current.getBoundingClientRect().height));
   }, []);
 
   useEffect(() => {
-    const ro = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)));
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === stageRef.current) setWidth(Math.floor(entry.contentRect.width));
+        else setGlowHeight(Math.floor(entry.contentRect.height));
+      }
+    });
     ro.observe(stageRef.current);
+    ro.observe(glowRef.current);
     const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.3 });
     io.observe(rootRef.current);
     return () => {
@@ -238,8 +247,8 @@ export default function Piano({ labels = "keys", song: songSlug = null, demo = f
   return (
     <div className="piano" ref={rootRef} data-phase={phase}>
       <div className="stage" ref={stageRef}>
-        <div className="glow" aria-hidden="true">
-          <Aurora ref={aurora} width={width} height={260} keyX={keyX} whiteWidth={whiteWidth} getLevel={() => engine.current.level()} />
+        <div className="glow" aria-hidden="true" ref={glowRef}>
+          <Aurora ref={aurora} width={width} height={glowHeight} keyX={keyX} whiteWidth={whiteWidth} getLevel={() => engine.current.level()} />
         </div>
         <div className="case">
           <div className="lip">
@@ -247,7 +256,7 @@ export default function Piano({ labels = "keys", song: songSlug = null, demo = f
             <b>Concert Grand</b>
           </div>
           <div className="felt" />
-          <div className="bed" style={{ height: Math.min(230, Math.max(150, whiteWidth * 7)) }}>
+          <div className="bed" style={{ height: Math.min(250, Math.max(150, whiteWidth * 7.2, window.innerHeight * 0.24)) }}>
             <Keyboard
               first={range.first}
               last={range.last}

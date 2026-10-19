@@ -26,3 +26,12 @@ Status: **implemented locally and verified; not deployed.** Live delivery, index
 3. Strongly consider a custom domain before building links; moving later needs redirects. If the URL changes, rebuild with `SITE_URL=https://your-domain npm run build`.
 4. Check after deploy: `/*.md` served as `text/markdown`, `404.html` served for unknown URLs, share preview via a card validator.
 5. Off-site work for the head terms (see keyword-map.md).
+
+## Sponsor (2026-10-19)
+
+- Every page credits the sponsor in the footer: "Sponsored and provided for free by Pianoers.com"; also the About page, home FAQ and privacy page, and JSON-LD (`sponsor` → Organization).
+- **Owner decision:** links to https://pianoers.com/ are plain followed links (no `nofollow` / `sponsored`). Recorded risk: Google's spam policies treat paid or sponsored links that pass ranking credit as link schemes; possible outcomes are the links being ignored or a manual action against either site. `npm run check` enforces the owner's choice (credit present, link followed).
+
+## Layout (2026-10-19)
+
+- Pages with a piano open with the piano filling the first screen, edge to edge; the title sits top-left and the content follows below. Measured: the piano ends at the bottom of the viewport at 1280×720, 1440×900 and 1920×1080; CLS 0 at all tested sizes. On phones the controls wrap, so the piano section runs slightly taller than one screen.

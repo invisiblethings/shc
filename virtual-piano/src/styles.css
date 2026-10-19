@@ -17,10 +17,10 @@
 }
 
 /* ---------- piano widget ---------- */
-.piano { position: relative; }
-.stage { position: relative; width: 100%; }
+.piano { position: relative; flex: 1; display: flex; flex-direction: column; }
+.stage { position: relative; width: 100%; flex: 1; display: flex; flex-direction: column; }
 .glow {
-  --level: 0; position: relative; height: 200px; overflow: hidden;
+  --level: 0; position: relative; flex: 1 1 auto; min-height: 150px; overflow: hidden;
   background: radial-gradient(55% 90% at 50% 100%, hsl(32 95% 58% / calc(0.04 + var(--level) * 0.4)), transparent 72%);
   -webkit-mask-image: linear-gradient(to top, #000 70%, transparent);
           mask-image: linear-gradient(to top, #000 70%, transparent);
@@ -141,7 +141,7 @@ input[type="range"]:focus-visible { outline: 2px solid var(--gold); outline-offs
 kbd { display: inline-block; margin: 0 2px; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); border-bottom-width: 2px; background: rgba(255,255,255,.04); color: var(--paper); font: 600 0.72rem/1.5 var(--sans); }
 
 @media (max-width: 700px) {
-  .glow { height: 130px; }
+  .glow { min-height: 110px; }
   .dock { gap: 14px 18px; padding: 14px; }
   .dock-end { margin-left: 0; }
   .hint { font-size: 0.55rem; bottom: 6px; }

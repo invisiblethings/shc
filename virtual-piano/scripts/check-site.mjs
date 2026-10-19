@@ -38,9 +38,10 @@ for (const page of PAGES) {
   if (h1s.length !== 1) fail(page.path, `${h1s.length} h1 elements`);
   if (!/<html lang="en">/.test(html)) fail(page.path, "missing lang");
   if (/fonts\.googleapis|fonts\.gstatic/.test(html)) fail(page.path, "loads third-party fonts");
-  if (!html.includes(`<a href="${SITE.sponsor.url}" rel="sponsored noopener">`)) fail(page.path, "missing sponsor credit");
+  if (!html.includes(`Sponsored and provided for free by <a href="${SITE.sponsor.url}">`)) fail(page.path, "missing sponsor credit");
+  // The owner wants the sponsor links followed: no nofollow / sponsored / ugc.
   for (const [, attrs] of html.matchAll(/<a href="https?:\/\/(?:www\.)?pianoers\.com[^"]*"([^>]*)>/g)) {
-    if (!attrs.includes('rel="sponsored')) fail(page.path, "sponsor link without rel=sponsored");
+    if (/nofollow|sponsored|ugc/.test(attrs)) fail(page.path, "sponsor link is not followed");
   }
 
   for (const block of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {

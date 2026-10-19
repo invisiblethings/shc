@@ -26,9 +26,8 @@ const esc = (s) =>
 const slugify = (s) =>
   s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-");
 
-// Sponsor links are paid placements: Google asks for rel="sponsored".
-const linkRel = (href) =>
-  href.startsWith(SITE.sponsor.url) ? ' rel="sponsored noopener"' : /^https?:/.test(href) ? ' rel="noopener"' : "";
+// Links to the sponsor are plain followed links (owner decision); other external links get noopener.
+const linkRel = (href) => (href.startsWith(SITE.sponsor.url) ? "" : /^https?:/.test(href) ? ' rel="noopener"' : "");
 
 /** Inline Markdown subset -> HTML. */
 function inline(text) {
@@ -205,37 +204,37 @@ ${noindex ? "" : `<script type="application/ld+json">${jsonLd(page)}</script>`}
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<div class="wrap">
+<main id="main">
+<section class="${page.piano ? "top top-piano" : "top"}">
 <header class="site-head">
 <a class="logo" href="/" aria-label="Nocturne virtual piano, home">Noc<em>turne</em></a>
 <nav class="site-nav" aria-label="Main">${NAV.map((n) => `<a href="${n.path}"${n.path === navCurrent ? ' aria-current="page"' : ""}>${esc(n.nav)}</a>`).join("")}</nav>
 </header>
-<main id="main">
-${crumbNav}
 <header class="hero">
+${crumbNav}
 <h1>${esc(page.h1)}</h1>
 <p class="lede">${inline(page.lede)}</p>
 </header>
 ${
   page.piano
-    ? `<div class="piano-slot${page.piano.song ? " has-song" : ""}" data-piano${pianoAttrs}>
+    ? `<div class="piano-slot" data-piano${pianoAttrs}>
 <div class="piano-fallback"><noscript><p>Turn on JavaScript to play the piano.</p></noscript><div class="fake-keys" aria-hidden="true"></div></div>
 </div>`
     : ""
 }
-<div class="content"><article class="prose">
+</section>
+<div class="wrap content"><article class="prose">
 ${page.blocks.map(blockHtml).join("\n")}
 </article></div>
 </main>
-<footer class="site-foot">
+<footer class="site-foot wrap">
 <nav aria-label="Footer">${[...NAV, PAGES.find((p) => p.id === "privacy")]
     .map((n) => `<a href="${n.path}">${esc(n.nav === "Piano" ? "Virtual piano" : n.nav)}</a>`)
     .join("")}</nav>
-<p class="sponsor">Sponsored and provided for free by <a href="${SITE.sponsor.url}" rel="sponsored noopener">${SITE.sponsor.name}</a></p>
+<p class="sponsor">Sponsored and provided for free by <a href="${SITE.sponsor.url}">${SITE.sponsor.name}</a></p>
 <p>Nocturne is a free virtual piano you can play online with your computer keyboard, mouse or touch screen.</p>
 <p>Piano sound: Salamander Grand Piano V3 by Alexander Holm, <a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener">CC BY 3.0</a>.</p>
 </footer>
-</div>
 <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

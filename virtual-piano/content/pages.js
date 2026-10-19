@@ -11,7 +11,7 @@ export const SITE = {
   url: (process.env.SITE_URL || "https://onlinevirtualpiano.netlify.app").replace(/\/$/, ""),
   locale: "en",
   tagline: "A free virtual piano with a real concert grand sound",
-  // The site is sponsored by Pianoers.com. Links to the sponsor carry rel="sponsored".
+  // The site is sponsored by Pianoers.com. Links to the sponsor are followed (owner decision).
   sponsor: { name: "Pianoers.com", url: "https://pianoers.com/" },
 };
 
