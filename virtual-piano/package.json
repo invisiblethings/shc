@@ -1,0 +1,22 @@
+{
+  "name": "virtual-piano",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/site.mjs pages && vite",
+    "build": "node scripts/site.mjs pages && vite build && node scripts/site.mjs post",
+    "preview": "vite preview",
+    "test": "node --test src/*.test.js",
+    "pages": "node scripts/site.mjs pages",
+    "check": "node scripts/check-site.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}
