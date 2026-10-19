@@ -104,6 +104,8 @@ td:first-child { font-weight: 700; color: #fff8e8; }
 .site-foot nav { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 12px; }
 .site-foot a { color: #a8a4b2; }
 .site-foot p { margin: 4px 0; }
+.site-foot .sponsor { margin-bottom: 10px; font-size: .9rem; color: #c9c3b4; }
+.site-foot .sponsor a { color: var(--gold-soft); font-weight: 600; }
 
 @media (max-width: 700px) {
   .site-head { padding-top: 16px; }

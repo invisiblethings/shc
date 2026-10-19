@@ -11,6 +11,8 @@ export const SITE = {
   url: (process.env.SITE_URL || "https://onlinevirtualpiano.netlify.app").replace(/\/$/, ""),
   locale: "en",
   tagline: "A free virtual piano with a real concert grand sound",
+  // The site is sponsored by Pianoers.com. Links to the sponsor carry rel="sponsored".
+  sponsor: { name: "Pianoers.com", url: "https://pianoers.com/" },
 };
 
 const songList = { type: "songs" };
@@ -77,7 +79,7 @@ const home = {
     {
       type: "faq",
       items: [
-        { q: "Is this online playable piano free?", a: "Yes. Nocturne is free to use, has no ads, and does not ask you to sign up or install anything." },
+        { q: "Is this online playable piano free?", a: "Yes. Nocturne is sponsored and provided for free by [Pianoers.com](https://pianoers.com/). It has no ads, and you don't need to sign up or install anything." },
         { q: "Can I play the online piano using my computer keyboard?", a: "Yes. The letter rows of your keyboard play two octaves of piano keys, and the arrow keys shift them up or down. The keys are mapped by their position, so QWERTY, AZERTY and QWERTZ keyboards all work. See the [keyboard key chart](/computer-keyboard-piano/)." },
         { q: "Does the virtual piano work on phones and tablets?", a: "Yes. Tap the keys with one or more fingers. Smaller screens show fewer keys at a time; use the octave arrows to move along the keyboard." },
         { q: "Why can't I hear anything?", a: "Browsers only allow sound after you interact with the page, so press **Start playing** first. On an iPhone or iPad, also check that the ring/silent switch is not set to silent, because it mutes web audio." },
@@ -269,6 +271,11 @@ const about = {
   h1: "About Nocturne",
   lede: "Nocturne is a free online piano that tries to feel like sitting at a real instrument, in any browser.",
   blocks: [
+    { type: "h2", text: "Sponsor" },
+    {
+      type: "p",
+      text: "Nocturne is sponsored and provided for free by [Pianoers.com](https://pianoers.com/), a site with piano reviews and guides for learners. Their support keeps this virtual piano free, without ads or sign-ups.",
+    },
     { type: "h2", text: "The sound" },
     {
       type: "p",
@@ -312,6 +319,7 @@ const privacy = {
         "**What you play stays on your device.** Sound is generated in your browser and is never uploaded.",
         "**MIDI access** is used only to read notes from your MIDI keyboard while the page is open, and only if you allow it.",
         "**Fonts and sounds** are served from this site itself, not from third parties.",
+        "**Sponsor:** the site is sponsored and provided free by [Pianoers.com](https://pianoers.com/). No information about you is shared with them.",
         "**Hosting:** like any web server, our hosting provider (Netlify) may keep standard server logs, such as IP addresses, for security and reliability.",
       ],
     },

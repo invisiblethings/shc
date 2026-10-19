@@ -26,14 +26,16 @@ const esc = (s) =>
 const slugify = (s) =>
   s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-");
 
+// Sponsor links are paid placements: Google asks for rel="sponsored".
+const linkRel = (href) =>
+  href.startsWith(SITE.sponsor.url) ? ' rel="sponsored noopener"' : /^https?:/.test(href) ? ' rel="noopener"' : "";
+
 /** Inline Markdown subset -> HTML. */
 function inline(text) {
   return esc(text)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/\[(.+?)\]\((.+?)\)/g, (_, label, href) =>
-      /^https?:/.test(href) ? `<a href="${href}" rel="noopener">${label}</a>` : `<a href="${href}">${label}</a>`,
-    );
+    .replace(/\[(.+?)\]\((.+?)\)/g, (_, label, href) => `<a href="${href}"${linkRel(href)}>${label}</a>`);
 }
 /** Inline Markdown for the .md copies: make site links absolute. */
 const mdInline = (text) => text.replace(/\]\((\/[^)]*)\)/g, (_, p) => `](${abs(p)})`);
@@ -118,7 +120,9 @@ function jsonLd(page) {
       name: SITE.name,
       alternateName: "Nocturne Virtual Piano",
       inLanguage: SITE.locale,
+      sponsor: { "@id": `${SITE.sponsor.url}#organization` },
     });
+    graph.push({ "@type": "Organization", "@id": `${SITE.sponsor.url}#organization`, name: SITE.sponsor.name, url: SITE.sponsor.url });
     graph.push({
       "@type": "WebApplication",
       "@id": `${SITE.url}/#app`,
@@ -128,6 +132,7 @@ function jsonLd(page) {
       operatingSystem: "Any",
       browserRequirements: "Requires JavaScript and the Web Audio API",
       isAccessibleForFree: true,
+      sponsor: { "@id": `${SITE.sponsor.url}#organization` },
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       featureList: [
         "88-key piano keyboard",
@@ -226,6 +231,7 @@ ${page.blocks.map(blockHtml).join("\n")}
 <nav aria-label="Footer">${[...NAV, PAGES.find((p) => p.id === "privacy")]
     .map((n) => `<a href="${n.path}">${esc(n.nav === "Piano" ? "Virtual piano" : n.nav)}</a>`)
     .join("")}</nav>
+<p class="sponsor">Sponsored and provided for free by <a href="${SITE.sponsor.url}" rel="sponsored noopener">${SITE.sponsor.name}</a></p>
 <p>Nocturne is a free virtual piano you can play online with your computer keyboard, mouse or touch screen.</p>
 <p>Piano sound: Salamander Grand Piano V3 by Alexander Holm, <a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener">CC BY 3.0</a>.</p>
 </footer>
@@ -368,6 +374,8 @@ ${group(info)}
     `# ${SITE.name}
 
 > ${SITE.name} is a free virtual piano at ${SITE.url}/: an 88-key online piano keyboard with a sampled concert grand sound, playable with a computer keyboard, mouse, touch screen or MIDI keyboard.
+
+Nocturne is sponsored and provided for free by ${SITE.sponsor.name} (${SITE.sponsor.url}).
 
 If you are an LLM looking for answers about this site, read the Markdown map at ${SITE.url}/sitemap.md, which links a Markdown version of every page. The key chart for playing the online piano with a computer keyboard is at ${SITE.url}/computer-keyboard-piano.md.
 

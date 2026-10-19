@@ -38,6 +38,10 @@ for (const page of PAGES) {
   if (h1s.length !== 1) fail(page.path, `${h1s.length} h1 elements`);
   if (!/<html lang="en">/.test(html)) fail(page.path, "missing lang");
   if (/fonts\.googleapis|fonts\.gstatic/.test(html)) fail(page.path, "loads third-party fonts");
+  if (!html.includes(`<a href="${SITE.sponsor.url}" rel="sponsored noopener">`)) fail(page.path, "missing sponsor credit");
+  for (const [, attrs] of html.matchAll(/<a href="https?:\/\/(?:www\.)?pianoers\.com[^"]*"([^>]*)>/g)) {
+    if (!attrs.includes('rel="sponsored')) fail(page.path, "sponsor link without rel=sponsored");
+  }
 
   for (const block of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
     try {
@@ -68,4 +72,4 @@ if (problems.length) {
   console.error(`check-site: ${problems.length} problem(s)\n- ${problems.join("\n- ")}`);
   process.exit(1);
 }
-console.log(`check-site: ${PAGES.length} pages OK (titles, descriptions, canonicals, h1, JSON-LD, links, Markdown copies, sitemap, robots)`);
+console.log(`check-site: ${PAGES.length} pages OK (titles, descriptions, canonicals, h1, JSON-LD, links, sponsor credit, Markdown copies, sitemap, robots)`);
