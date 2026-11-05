@@ -1,0 +1,26 @@
+<svg font-family="Montserrat" width="1600" height="600" viewBox="0 0 1600 600" xmlns="http://www.w3.org/2000/svg">
+   <rect width="1600" height="600" fill="#0B1F3A"/>
+   <g transform="translate(150 150) scale(1.95)"><g fill="#FF8A00"><rect x="-40" y="50" width="56" height="7" rx="3.5"/><rect x="-62" y="66" width="70" height="7" rx="3.5"/><rect x="-28" y="82" width="44" height="7" rx="3.5"/></g>
+  <!-- tipper trailer body -->
+  <path d="M28 34 H262 V98 H74 Q44 98 32 78 Z" fill="#FFFFFF"/>
+  <path d="M28 34 H262 V42 H30 Z" fill="#FF8A00"/>
+  <g stroke="#0B1F3A" stroke-width="3" opacity=".55">
+    <line x1="80" y1="48" x2="80" y2="92"/><line x1="125" y1="48" x2="125" y2="92"/>
+    <line x1="170" y1="48" x2="170" y2="92"/><line x1="215" y1="48" x2="215" y2="92"/>
+  </g>
+  <!-- chassis -->
+  <rect x="44" y="100" width="318" height="7" rx="2" fill="#FFFFFF"/>
+  <!-- cab -->
+  <path d="M276 106 V30 Q276 16 290 16 H336 Q348 16 351 28 L362 76 V106 Z" fill="#FFFFFF"/>
+  <path d="M312 26 H335 Q340 26 341.5 31 L349 62 H312 Z" fill="#0B1F3A"/>
+  <rect x="286" y="26" width="18" height="36" rx="3" fill="#0B1F3A"/>
+  <rect x="326" y="8" width="12" height="8" rx="2" fill="#FF8A00"/>
+  <rect x="352" y="84" width="10" height="6" rx="1.5" fill="#FF8A00"/>
+  <circle cx="66" cy="122" r="17" fill="#FFFFFF"/><circle cx="66" cy="122" r="8.5" fill="#0B1F3A"/><circle cx="66" cy="122" r="3.5" fill="#FFFFFF"/><circle cx="102" cy="122" r="17" fill="#FFFFFF"/><circle cx="102" cy="122" r="8.5" fill="#0B1F3A"/><circle cx="102" cy="122" r="3.5" fill="#FFFFFF"/><circle cx="138" cy="122" r="17" fill="#FFFFFF"/><circle cx="138" cy="122" r="8.5" fill="#0B1F3A"/><circle cx="138" cy="122" r="3.5" fill="#FFFFFF"/><circle cx="240" cy="122" r="17" fill="#FFFFFF"/><circle cx="240" cy="122" r="8.5" fill="#0B1F3A"/><circle cx="240" cy="122" r="3.5" fill="#FFFFFF"/><circle cx="274" cy="122" r="17" fill="#FFFFFF"/><circle cx="274" cy="122" r="8.5" fill="#0B1F3A"/><circle cx="274" cy="122" r="3.5" fill="#FFFFFF"/><circle cx="336" cy="122" r="17" fill="#FFFFFF"/><circle cx="336" cy="122" r="8.5" fill="#0B1F3A"/><circle cx="336" cy="122" r="3.5" fill="#FFFFFF"/>
+  </g>
+   <g font-family="Montserrat">
+     <text x="960" y="335" font-size="230" font-weight="900" font-style="italic" fill="#FFFFFF" letter-spacing="-4">LELA</text>
+     <rect x="972" y="370" width="520" height="10" rx="5" fill="#FF8A00"/>
+     <text x="978" y="455" font-size="68" font-weight="700" fill="#FFFFFF" letter-spacing="30">COMPANY</text>
+   </g>
+  </svg>
